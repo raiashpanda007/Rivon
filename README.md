@@ -36,19 +36,19 @@ Navigate to the `Client` directory and install dependencies:
 
 ```bash
 cd Client
-pnpm install
+bun install
 ```
 
 To start the development server for all apps:
 
 ```bash
-pnpm dev
+bun dev
 ```
 
 Or to run a specific app (e.g., `bet`):
 
 ```bash
-pnpm --filter bet dev
+bun --filter bet dev
 ```
 
 ### 2. Server Setup (Backend)
