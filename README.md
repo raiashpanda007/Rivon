@@ -1,6 +1,6 @@
 # Rivon
 
-Rivon is a modern, full-stack monorepo application built with high-performance technologies. It features a scalable frontend architecture using Turborepo and Next.js, and a flexible backend infrastructure powered by Go.
+Rivon is a modern sports trading and betting exchange, where you can but football teams as stocks and trade them in real-time and also you can use those stocks to bet on live matches.The main idea behind this project is to build robust and super system with as much as automation as possible and efficient scalling methods .It is built with high-performance technologies. It features a scalable frontend architecture using Turborepo and Next.js, and a flexible backend infrastructure powered by Go.
 
 ## 🚀 Project Status
 
