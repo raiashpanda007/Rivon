@@ -2,6 +2,9 @@
 
 Rivon is a modern sports trading and betting exchange, where you can but football teams as stocks and trade them in real-time and also you can use those stocks to bet on live matches.The main idea behind this project is to build robust and super system with as much as automation as possible and efficient scalling methods .It is built with high-performance technologies. It features a scalable frontend architecture using Turborepo and Next.js, and a flexible backend infrastructure powered by Go.
 
+## PLEASE NOTE !!! 
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change. But please make sure try to completely fix the issue then raise a pr and also not forget to update the docs and readme files. If you are raising a pr for both client side and server side then please try to raise it together not forcing anything but this is for fullstack students so they will get better exposure . And please keep pr standards high and make sure to raise pr for small changes also.
+
 ## 🚀 Project Status
 
 ### Client-Side (Frontend)
