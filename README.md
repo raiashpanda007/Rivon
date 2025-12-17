@@ -17,7 +17,11 @@ The frontend is structured as a **Turborepo** monorepo containing:
 ### Server-Side (Backend)
 The backend is initialized as a **Go module** with a custom CLI tool for managing microservices.
 - **CLI Tool**: Located in `Server/cli`, this tool helps in scaffolding, building, and starting services.
-- **Current State**: The infrastructure is ready, but no specific microservices have been added to `cmd/` yet.
+- **Services**:
+  - `api-server`: The main API server built with `chi` router. It includes middleware for logging, recovery, and timeouts, and supports graceful shutdown.
+- **Shared Internals**:
+  - `config`: Centralized configuration management using `godotenv` to load environment variables.
+- **Current State**: The infrastructure is set up with the first microservice (`api-server`) and shared configuration logic.
 
 ---
 
@@ -59,9 +63,22 @@ Navigate to the `Server` directory:
 cd Server
 ```
 
-The backend is managed via a custom CLI tool located in `cli/main.go`.
+#### Environment Configuration
+Copy the sample environment file and configure the necessary variables:
+```bash
+cp .env.sample .env
+```
+Ensure the following variables are set in `.env`:
+- `AUTH_SECRET`
+- `GOOGLE_AUTH_CLIENT_ID`
+- `GOOGLE_AUTH_CLIENT_SECRET`
+- `GITHUB_AUTH_CLIENT_ID`
+- `GITHUB_AUTH_CLIENT_SECRET`
+- `API_SERVER_URL`
 
 #### Managing Services
+
+The backend is managed via a custom CLI tool located in `cli/main.go`.
 
 **Add a new service:**
 This will create a new service directory in `cmd/<service-name>`.
@@ -75,7 +92,7 @@ Starts all registered services (defined in `services.json`).
 ```bash
 go run cli/main.go start
 # Or start specific services:
-# go run cli/main.go start auth payment
+# go run cli/main.go start api-server
 ```
 
 **Build services:**
@@ -96,7 +113,9 @@ Rivon/
 │   └── ...
 ├── Server/                  # Backend Go Module
 │   ├── cli/                 # Custom CLI for service management
-│   ├── cmd/                 # Microservices entry points (currently empty)
+│   ├── cmd/                 # Microservices entry points
+│   │   └── api-server/      # Main API Server
+│   ├── internals/           # Shared internal packages (config, etc.)
 │   ├── services.json        # Registry of available services
 │   └── ...
 └── README.md
