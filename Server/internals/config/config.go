@@ -8,6 +8,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type DataBase struct {
+	PgURL string
+}
 type AuthConfig struct {
 	AuthSecret         string
 	GoogleClientID     string
@@ -21,6 +24,7 @@ type HttpServer struct {
 type Config struct {
 	Auth   AuthConfig
 	Server HttpServer
+	Db     DataBase
 }
 
 func mustEnv(key string) string {
@@ -32,6 +36,7 @@ func mustEnv(key string) string {
 }
 func MustLoad() *Config {
 	var cfg Config
+	log.Print("Loading Config ... ")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalln("ERROR ::  IN READING .env ", err.Error())
@@ -47,8 +52,12 @@ func MustLoad() *Config {
 	var httpCfg = HttpServer{
 		ApiServerAddr: mustEnv("API_SERVER_URL"),
 	}
+	var dbCfg = DataBase{
+		PgURL: mustEnv("DATABASE_POSTGRES_URL"),
+	}
 
 	cfg.Auth = authCfg
 	cfg.Server = httpCfg
+	cfg.Db = dbCfg
 	return &cfg
 }

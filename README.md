@@ -21,9 +21,16 @@ The frontend is structured as a **Turborepo** monorepo containing:
 The backend is initialized as a **Go module** with a custom CLI tool for managing microservices.
 - **CLI Tool**: Located in `Server/cli`, this tool helps in scaffolding, building, and starting services.
 - **Services**:
-  - `api-server`: The main API server built with `chi` router. It includes middleware for logging, recovery, and timeouts, and supports graceful shutdown.
-- **Shared Internals**:
-  - `config`: Centralized configuration management using `godotenv` to load environment variables.
+  - `api-server`: The main API server built with `chi` router. It includes middleware for logging, recovery, and timeouts, supports graceful shutdown, and initializes the database connection at startup.
+- **Shared Internals** (`Server/internals`):
+  - **`config`**:
+    - **Purpose**: Centralized configuration management for the backend.
+    - **Functionality**: Loads environment variables using `godotenv` and maps them to strongly-typed structs (`AuthConfig`, `HttpServer`, `DataBase`).
+    - **Validation**: Enforces the presence of critical environment variables (e.g., `AUTH_SECRET`, `API_SERVER_URL`, `DATABASE_POSTGRES_URL`) at startup, preventing runtime errors due to missing configuration.
+  - **`database`**:
+    - **Purpose**: Manages database connections and migrations.
+    - **Functionality**: Uses `pgx/v5/pgxpool` for efficient PostgreSQL connection pooling.
+    - **Features**: Includes an `Init_DB` function to establish connections and verify them with a ping.
 - **Current State**: The infrastructure is set up with the first microservice (`api-server`) and shared configuration logic.
 
 ---
@@ -34,7 +41,7 @@ Follow these steps to set up the application locally.
 
 ### Prerequisites
 - **Node.js** (Latest LTS recommended)
-- **pnpm** (Package manager)
+- **bun** (Package manager)
 - **Go** (v1.24+)
 
 ### 1. Client Setup (Frontend)
@@ -58,7 +65,22 @@ Or to run a specific app (e.g., `bet`):
 bun --filter bet dev
 ```
 
-### 2. Server Setup (Backend)
+
+
+### 2. Infrastructure Setup (Database)
+
+The project uses **Docker Compose** to spin up necessary infrastructure services (e.g., PostgreSQL).
+
+Ensure you have Docker installed and running, then execute:
+
+```bash
+# From the project root
+docker-compose up -d
+```
+
+This will start all instances on their respective ports with the credentials matching `.env.sample`.
+
+### 3. Server Setup (Backend)
 
 Navigate to the `Server` directory:
 
@@ -78,6 +100,7 @@ Ensure the following variables are set in `.env`:
 - `GITHUB_AUTH_CLIENT_ID`
 - `GITHUB_AUTH_CLIENT_SECRET`
 - `API_SERVER_URL`
+- `DATABASE_POSTGRES_URL`
 
 #### Managing Services
 
@@ -118,7 +141,7 @@ Rivon/
 │   ├── cli/                 # Custom CLI for service management
 │   ├── cmd/                 # Microservices entry points
 │   │   └── api-server/      # Main API Server
-│   ├── internals/           # Shared internal packages (config, etc.)
+│   ├── internals/           # Shared internal packages (config, database, etc.)
 │   ├── services.json        # Registry of available services
 │   └── ...
 └── README.md
