@@ -8,14 +8,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+
+	"github.com/raiashpanda007/rivon/internals/config"
 )
 
 type Command string
 
 const (
-	CmdBuild Command = "build"
-	CmdStart Command = "start"
-	CmdAdd   Command = "add"
+	CmdBuild   Command = "build"
+	CmdStart   Command = "start"
+	CmdAdd     Command = "add"
+	CmdMigrate Command = "migrate"
 )
 
 func loadServices() (map[string]string, error) {
@@ -46,6 +49,27 @@ func run(command string, args ...string) error {
 	return cmd.Run()
 }
 
+func migrate(databaseURL string, args ...string) {
+	if len(args) != 1 {
+		log.Fatalln("migrate expects exactly one argument: up | down")
+	}
+
+	direction := args[0]
+	if direction != "up" && direction != "down" {
+		log.Fatalln("invalid migrate command, use: up or down")
+	}
+
+	err := run(
+		"migrate",
+		"-path", "./internals/database/migrations",
+		"-database", databaseURL,
+		direction,
+	)
+
+	if err != nil {
+		log.Fatalf("UNABLE TO MIGRATE %s :: %v", direction, err)
+	}
+}
 func add(apps ...string) {
 	var template = `package main 
 	
@@ -141,6 +165,8 @@ func build(target ...string) {
 
 func main() {
 	slog.Info("---------CLI TOOL RUNNING FOR SERVING RIVON PROJECT--------")
+	cfg := config.MustLoad()
+
 	if len(os.Args) < 2 {
 		log.Fatalf("usage: dev <start |build | add> [services...]")
 	}
@@ -166,6 +192,8 @@ func main() {
 		build(args...)
 	case CmdAdd:
 		add(args...)
+	case CmdMigrate:
+		migrate(cfg.Db.PgURL, args...)
 	default:
 		log.Fatalf("unknown command: %s", command)
 	}

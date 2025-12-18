@@ -43,6 +43,7 @@ Follow these steps to set up the application locally.
 - **Node.js** (Latest LTS recommended)
 - **bun** (Package manager)
 - **Go** (v1.24+)
+- **migrate** (CLI tool for database migrations)
 
 ### 1. Client Setup (Frontend)
 
@@ -125,6 +126,14 @@ go run cli/main.go start
 Builds binaries for the services into the `bin/` directory.
 ```bash
 go run cli/main.go build
+```
+
+**Database Migrations:**
+Runs database migrations using the `migrate` tool. Requires the `migrate` CLI to be installed.
+```bash
+go run cli/main.go migrate up
+# Or to rollback:
+go run cli/main.go migrate down
 ```
 
 ## 📂 Project Structure
