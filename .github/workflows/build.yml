@@ -30,6 +30,7 @@ jobs:
         run: go mod tidy
       - name: Building Client Side
         working-directory: ./Client
-        run: bun build
+        run: bun run build
       - name: Building Server Side
-        run: go run ./Server/cli/main.go build
+        working-directory: ./Server
+        run: go run cli/main.go build
