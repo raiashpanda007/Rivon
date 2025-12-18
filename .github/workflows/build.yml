@@ -1,0 +1,35 @@
+name: Build Workflow
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - dev
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.1
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: Server/go.mod
+          cache-dependency-path: Server/go.sum
+      - name: Install Client Dependencies
+        working-directory: ./Client
+        run: bun install
+      - name: Install Server Dependencies
+        working-directory: ./Server
+        run: go mod tidy
+      - name: Building Client Side
+        working-directory: ./Client
+        run: bun build
+      - name: Building Server Side
+        run: go run ./Server/cli/main.go build
