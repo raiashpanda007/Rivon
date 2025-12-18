@@ -15,6 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare env for CI
+        working-directory: ./Server
+        run: cp .env.sample .env
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
