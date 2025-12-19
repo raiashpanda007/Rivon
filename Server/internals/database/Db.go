@@ -4,14 +4,16 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DataBase struct {
-	PgDB *pgxpool.Pool
+	PgDB  *pgxpool.Pool
+	Redis *redis.Client
 }
 
-func Init_DB(pgUrl string) (*DataBase, error) {
+func Init_DB(pgUrl string, rdUrl string) (*DataBase, error) {
 	ctx := context.Background()
 	db, err := pgxpool.New(ctx, pgUrl)
 	if err != nil {
@@ -25,9 +27,19 @@ func Init_DB(pgUrl string) (*DataBase, error) {
 	}
 
 	slog.Info("CONNECTED TO PG DB :: ")
+	Redis := redis.NewClient(&redis.Options{
+		Addr: rdUrl,
+	})
+	_, err = Redis.Ping(ctx).Result()
+	if err != nil {
+		slog.Error("REDIS Ping failed ", slog.Any("ERROR :: ", err))
+		return nil, err
+	}
+	slog.Info("CONNECTED TO REDIS DB :: ")
 
 	return &DataBase{
-		PgDB: db,
+		PgDB:  db,
+		Redis: Redis,
 	}, nil
 
 }

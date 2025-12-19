@@ -8,4 +8,8 @@ services:
       - POSTGRES_DB=postgres
     ports:
       - "5432:5432"
-
+  otpredis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
