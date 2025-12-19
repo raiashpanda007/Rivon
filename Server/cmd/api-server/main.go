@@ -20,7 +20,7 @@ func main() {
 	slog.Info("Starting api-server :: ")
 	cfg := config.MustLoad()
 
-	_, err := database.Init_DB(cfg.Db.PgURL)
+	_, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL)
 	if err != nil {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}

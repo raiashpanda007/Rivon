@@ -9,7 +9,8 @@ import (
 )
 
 type DataBase struct {
-	PgURL string
+	PgURL       string
+	OTPRedisURL string
 }
 type AuthConfig struct {
 	AuthSecret         string
@@ -53,7 +54,8 @@ func MustLoad() *Config {
 		ApiServerAddr: mustEnv("API_SERVER_URL"),
 	}
 	var dbCfg = DataBase{
-		PgURL: mustEnv("DATABASE_POSTGRES_URL"),
+		PgURL:       mustEnv("DATABASE_POSTGRES_URL"),
+		OTPRedisURL: mustEnv("OTP_REDIS_URL"),
 	}
 
 	cfg.Auth = authCfg
