@@ -45,6 +45,12 @@ The backend is initialized as a **Go module** with a custom CLI tool for managin
     - **Purpose**: Shared type definitions and data structures used across the application.
 - **Current State**: The infrastructure is set up with the first microservice (`api-server`) and shared configuration logic.
 
+### Mail Server
+A standalone service for handling email communications.
+- **Tech Stack**: Bun, Express, Nodemailer.
+- **Functionality**: Sends emails (e.g., OTPs) using HTML templates.
+- **Location**: `MailServer/` directory.
+
 ---
 
 ## 🛠️ Setup Instructions
@@ -155,6 +161,22 @@ go run cli/main.go migrate up
 go run cli/main.go migrate down
 ```
 
+### 4. Mail Server Setup
+
+Navigate to the `MailServer` directory and install dependencies:
+
+```bash
+cd MailServer
+bun install
+```
+
+To start the mail server:
+
+```bash
+bun dev
+```
+The server runs on port `8001` (default) and listens for email sending requests.
+
 ## 📂 Project Structure
 
 ```
@@ -165,6 +187,7 @@ Rivon/
 │   │   └── exchange/        # Exchange Application
 │   ├── packages/            # Shared libraries (UI, configs)
 │   └── ...
+├── MailServer/              # Email Service (Bun/Express)
 ├── Server/                  # Backend Go Module
 │   ├── cli/                 # Custom CLI for service management
 │   ├── cmd/                 # Microservices entry points

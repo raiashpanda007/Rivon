@@ -39,3 +39,6 @@ jobs:
       - name: Building Server Side
         working-directory: ./Server
         run: go run cli/main.go build
+      - name: Building MailServer Side
+        working-directory: ./MailServer
+        run: bun run build
