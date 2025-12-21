@@ -8,7 +8,7 @@ dotenv.config();
 const USER_EMAIL = process.env.USER_EMAIL ?? "your@gmail.com";
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD ?? "email-password";
 const MailHandlerTypes = zod.object({
-  senderMail: zod.email(),
+  email: zod.email(),
   subject: zod.string(),
   body: zod.string(),
 })
@@ -23,14 +23,15 @@ const transporter = nodemailer.createTransport({
 
 export default function MailHandler(req: Request, res: Response, next: NextFunction) {
   const parsedBody = MailHandlerTypes.safeParse(req.body);
+  console.log(req.body);
   if (!parsedBody.success) {
     return res.status(422).json({ Message: "Please provide a valid data", Data: parsedBody.error })
   }
-  const { body, subject, senderMail } = parsedBody.data;
+  const { body, subject, email } = parsedBody.data;
 
   const mailOptions = {
     from: USER_EMAIL,
-    to: senderMail,
+    to: email,
     subject: subject,
     text: body
   };
