@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/database"
+	"github.com/raiashpanda007/rivon/internals/http/routes"
 	"log"
 	"log/slog"
 	"net/http"
@@ -9,28 +12,18 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/raiashpanda007/rivon/internals/config"
-	"github.com/raiashpanda007/rivon/internals/database"
 )
 
 func main() {
 	slog.Info("Starting api-server :: ")
 	cfg := config.MustLoad()
 
-	_, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL)
+	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL)
 	if err != nil {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}
 
-	router := chi.NewRouter()
-	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.Timeout(60 * time.Second))
+	router := routes.InitRouters(cfg, Db.PgDB, Db.Redis)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,

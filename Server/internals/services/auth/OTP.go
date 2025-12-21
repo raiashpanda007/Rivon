@@ -125,13 +125,13 @@ func (r *otpUtils) SendOTP(ctx context.Context, userID string, name string, otp 
 		"application/json",
 		bytes.NewReader(jsonData),
 	)
-	defer res.Body.Close()
 	if err != nil {
 		return utils.ErrInternal, errors.New("Unable to send the otp to mailing server :: " + err.Error())
 	}
 	if res.StatusCode >= 400 {
 		return utils.ErrInternal, errors.New("Unable to send the otp to mailing server :: ")
 	}
+	defer res.Body.Close()
 	return utils.NoError, nil
 
 }

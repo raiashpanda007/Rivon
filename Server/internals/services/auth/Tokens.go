@@ -5,12 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/utils"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 type TokenServices interface {
@@ -139,7 +140,7 @@ func (r *tokenUtils) GenerateRefreshToken(ctx context.Context, userID string) (*
 }
 
 func (r *tokenUtils) VerifyAccessToken(ctx context.Context, accessToken string) (*User, utils.ErrorType, error) {
-	token, err := jwt.Parse(accessToken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(accessToken, func(t *jwt.Token) (any, error) {
 
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -189,14 +190,14 @@ func (r *tokenUtils) VerifyAccessToken(ctx context.Context, accessToken string) 
 		Name:     name,
 		Email:    email,
 		Verified: verified,
-		Provider: provider,
+		Provider: AuthProvider(provider),
 	}, utils.NoError, nil
 
 }
 
 func (r *tokenUtils) RevokeToken(ctx context.Context, refreshToken string, userID string) (bool, utils.ErrorType, error) {
 	query := `
-		UPDATE TABLE tokens
+		UPDATE tokens
 		SET revoked = TRUE , updated_at = NOW()
 		WHERE id = $1 
 		`

@@ -1,0 +1,13 @@
+BEGIN;
+
+  DROP TABLE IF EXISTS transactions;
+  DROP TABLE IF EXISTS tokens;
+  DROP TABLE IF EXISTS wallets;
+  DROP TABLE IF EXISTS users;
+
+  DROP TYPE IF EXISTS txn_type;
+  DROP TYPE IF EXISTS auth_provider;
+  DROP TYPE IF EXISTS user_type;
+
+  COMMIT;
+

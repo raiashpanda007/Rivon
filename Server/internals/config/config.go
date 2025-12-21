@@ -21,11 +21,13 @@ type AuthConfig struct {
 }
 type HttpServer struct {
 	ApiServerAddr string
+	CookieSecure  bool
 }
 type Config struct {
-	Auth   AuthConfig
-	Server HttpServer
-	Db     DataBase
+	Auth          AuthConfig
+	Server        HttpServer
+	Db            DataBase
+	MailServerURL string
 }
 
 func mustEnv(key string) string {
@@ -34,6 +36,12 @@ func mustEnv(key string) string {
 		log.Fatalf("ERROR :: MISSING OR EMPTY env VARS  :: %s", key)
 	}
 	return val
+}
+func stringTobool(str string) bool {
+	if str == "TRUE" || str == "true" || str == "True" {
+		return true
+	}
+	return false
 }
 func MustLoad() *Config {
 	var cfg Config
@@ -52,6 +60,7 @@ func MustLoad() *Config {
 	}
 	var httpCfg = HttpServer{
 		ApiServerAddr: mustEnv("API_SERVER_URL"),
+		CookieSecure:  stringTobool(mustEnv("COOKIE_SECURE")),
 	}
 	var dbCfg = DataBase{
 		PgURL:       mustEnv("DATABASE_POSTGRES_URL"),
@@ -61,5 +70,6 @@ func MustLoad() *Config {
 	cfg.Auth = authCfg
 	cfg.Server = httpCfg
 	cfg.Db = dbCfg
+	cfg.MailServerURL = mustEnv("MAIL_SERVER_URL")
 	return &cfg
 }

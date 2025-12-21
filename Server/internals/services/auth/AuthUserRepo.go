@@ -6,17 +6,26 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
+type AuthProvider string
+
+const (
+	ProviderCredentials AuthProvider = "credentials"
+	ProviderGoogle      AuthProvider = "google"
+	ProviderGithub      AuthProvider = "github"
+)
+
 type User struct {
-	Id       uuid.UUID `json:"id"`
-	Type     string    `json:"type"`
-	Name     string    `json:"name"`
-	Email    string    `json:"email"`
-	Verified bool      `json:"verified"`
-	Provider string    `json:"provider"`
+	Id       uuid.UUID    `json:"id"`
+	Type     string       `json:"type"`
+	Name     string       `json:"name"`
+	Email    string       `json:"email"`
+	Verified bool         `json:"verified"`
+	Provider AuthProvider `json:"provider"`
 }
 
 type userRepoServices struct {
@@ -24,22 +33,19 @@ type userRepoServices struct {
 }
 
 type UserRepo interface {
-	GetUserByEmail(ctx context.Context, email, provider string) (*User, *string, utils.ErrorType, error)
-	CreateUser(ctx context.Context, email, name, passwordHash string) (*User, utils.ErrorType, error)
+	GetUserByEmail(ctx context.Context, email string, provider AuthProvider) (*User, *string, utils.ErrorType, error)
+	GetUserByID(ctx context.Context, id string) (*User, string, utils.ErrorType, error)
+	CreateUserCredentials(ctx context.Context, email, name, passwordHash string) (*User, utils.ErrorType, error)
 	DeleteUser(ctx context.Context, id string) (bool, utils.ErrorType, error)
 	UpdatePassword(ctx context.Context, id string, newPassword string) (bool, utils.ErrorType, error)
+	UpdateUserVerification(ctx context.Context, userID string) (utils.ErrorType, error)
 }
 
 func NewUserRepo(pgDb *pgxpool.Pool) UserRepo {
 	return &userRepoServices{db: pgDb}
 }
 
-func (r *userRepoServices) GetUserByEmail(
-	ctx context.Context,
-	email string,
-	provider string,
-) (*User, *string, utils.ErrorType, error) {
-
+func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, provider AuthProvider) (*User, *string, utils.ErrorType, error) {
 	var user User
 	var password string
 	err := r.db.QueryRow(
@@ -69,7 +75,36 @@ func (r *userRepoServices) GetUserByEmail(
 	return &user, &password, utils.NoError, nil
 }
 
-func (r *userRepoServices) CreateUser(
+func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, string, utils.ErrorType, error) {
+	var user User
+	var password string
+	err := r.db.QueryRow(
+		ctx,
+		`SELECT id, type, name, email, password_hash, verified, provider
+		 FROM users
+		 WHERE id = $1 `,
+		id,
+	).Scan(
+		&user.Id,
+		&user.Type,
+		&user.Name,
+		&user.Email,
+		&password,
+		&user.Verified,
+		&user.Provider,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, "", utils.ErrNotFound, errors.New("user not found")
+		}
+		return nil, "", utils.ErrInternal, err
+	}
+
+	return &user, password, utils.NoError, nil
+}
+
+func (r *userRepoServices) CreateUserCredentials(
 	ctx context.Context,
 	email string,
 	name string,
@@ -87,9 +122,6 @@ func (r *userRepoServices) CreateUser(
 		password_hash
 	)
 	VALUES ($1, $2, $3, 'credentials', $4)
-	ON CONFLICT (email, provider)
-	DO UPDATE SET
-		name = users.name
 	RETURNING
 		id,
 		type,
@@ -116,6 +148,12 @@ func (r *userRepoServices) CreateUser(
 	)
 
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return nil, utils.ErrConflict, errors.New("User already exsits")
+			}
+		}
 		return nil, utils.ErrInternal, err
 	}
 
@@ -165,8 +203,8 @@ func (r *userRepoServices) UpdatePassword(ctx context.Context, id string, newPas
 
 func (r *userRepoServices) UpdateUserVerification(ctx context.Context, userID string) (utils.ErrorType, error) {
 	query := `
-	UPDATE TABLE users 
-	SET verified = TRUE
+	UPDATE users 
+	SET verified = TRUE, updated_at = NOW()
 	WHERE id = $1
 	`
 	cmd, err := r.db.Exec(ctx, query, userID)

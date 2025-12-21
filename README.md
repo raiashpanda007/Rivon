@@ -31,6 +31,18 @@ The backend is initialized as a **Go module** with a custom CLI tool for managin
     - **Purpose**: Manages database connections and migrations.
     - **Functionality**: Uses `pgx/v5/pgxpool` for efficient PostgreSQL connection pooling.
     - **Features**: Includes an `Init_DB` function to establish connections and verify them with a ping.
+  - **`http`**:
+    - **Purpose**: Handles HTTP requests, routing, and middleware.
+    - **Components**:
+      - `controllers`: Request handlers and input validation.
+      - `routes`: URL routing and handler mapping (using `chi`).
+      - `middlewares`: Request processing (e.g., logging, auth verification).
+  - **`services`**:
+    - **Purpose**: Encapsulates business logic and domain services.
+    - **Components**:
+      - `auth`: Handles authentication logic, OTP generation/verification, and token management.
+  - **`types`**:
+    - **Purpose**: Shared type definitions and data structures used across the application.
 - **Current State**: The infrastructure is set up with the first microservice (`api-server`) and shared configuration logic.
 
 ---
@@ -79,7 +91,11 @@ Ensure you have Docker installed and running, then execute:
 docker-compose up -d
 ```
 
-This will start all instances on their respective ports with the credentials matching `.env.sample`.
+This will start:
+- A **PostgreSQL** instance on port `5432`.
+- A **Redis** instance on port `6379` (used for OTP management).
+
+The credentials and configurations match those in `.env.sample`.
 
 ### 3. Server Setup (Backend)
 
@@ -102,6 +118,9 @@ Ensure the following variables are set in `.env`:
 - `GITHUB_AUTH_CLIENT_SECRET`
 - `API_SERVER_URL`
 - `DATABASE_POSTGRES_URL`
+- `OTP_REDIS_URL`
+- `COOKIE_SECURE`
+- `MAIL_SERVER_URL`
 
 #### Managing Services
 
@@ -150,7 +169,7 @@ Rivon/
 │   ├── cli/                 # Custom CLI for service management
 │   ├── cmd/                 # Microservices entry points
 │   │   └── api-server/      # Main API Server
-│   ├── internals/           # Shared internal packages (config, database, etc.)
+│   ├── internals/           # Shared internal packages (config, database, http, services, types)
 │   ├── services.json        # Registry of available services
 │   └── ...
 └── README.md
