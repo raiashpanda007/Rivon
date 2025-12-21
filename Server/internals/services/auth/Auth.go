@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/raiashpanda007/rivon/internals/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -37,18 +39,22 @@ func (r *authUtils) CredentialSignUp(ctx context.Context, email, name, password 
 	cost := bcrypt.DefaultCost
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 	if err != nil {
+		slog.Error("Error hashing password", "error", err)
 		return nil, "", "", utils.ErrInternal, errors.New("Unable to hash your password :: " + err.Error())
 	}
 	createdUser, errType, err := r.UserRepo.CreateUserCredentials(ctx, email, name, string(hashedPassword))
 	if err != nil {
+		slog.Error("Error creating user credentials", "error", err)
 		return nil, "", "", errType, err
 	}
 	refreshToken, errType, err := r.Token.GenerateRefreshToken(ctx, createdUser.Id.String())
 	if err != nil {
+		slog.Error("Error generating refresh token", "error", err)
 		return nil, "", "", errType, err
 	}
 	accessToken, errType, err := r.Token.GenerateAccessToken(ctx, *createdUser, *refreshToken)
 	if err != nil {
+		slog.Error("Error generating access token", "error", err)
 		return nil, "", "", errType, err
 	}
 	rt := RefreshToken(*refreshToken)
@@ -61,19 +67,23 @@ func (r *authUtils) CredentialSignIn(ctx context.Context, email, password string
 	savedUser, userPassword, errType, err := r.UserRepo.GetUserByEmail(ctx, email, ProviderCredentials)
 
 	if err != nil {
+		slog.Error("Error getting user by email", "error", err)
 		return nil, "", "", errType, err
 	}
 
 	verifyPassword := bcrypt.CompareHashAndPassword([]byte(*userPassword), []byte(password))
 	if verifyPassword != nil {
+		slog.Error("Password verification failed", "error", verifyPassword)
 		return nil, "", "", utils.ErrBadRequest, errors.New("wrong password please login with valid password")
 	}
 	refreshToken, errType, err := r.Token.GenerateRefreshToken(ctx, savedUser.Id.String())
 	if err != nil {
+		slog.Error("Error generating refresh token", "error", err)
 		return nil, "", "", errType, err
 	}
 	accessToken, errType, err := r.Token.GenerateAccessToken(ctx, *savedUser, *refreshToken)
 	if err != nil {
+		slog.Error("Error generating access token", "error", err)
 		return nil, "", "", errType, err
 	}
 
@@ -84,18 +94,25 @@ func (r *authUtils) CredentialSignIn(ctx context.Context, email, password string
 }
 
 func (r *authUtils) CredentialSignOut(ctx context.Context, userId, refreshToken string) (bool, utils.ErrorType, error) {
-	return r.Token.RevokeToken(ctx, refreshToken, userId)
+	ok, errType, err := r.Token.RevokeToken(ctx, refreshToken, userId)
+	if err != nil {
+		slog.Error("Error revoking token", "error", err)
+		return false, errType, err
+	}
+	return ok, errType, err
 }
 
 func (r *authUtils) CredentialRefreshToken(ctx context.Context, refreshToken, userId string) (string, utils.ErrorType, error) {
 	user, _, errType, err := r.UserRepo.GetUserByID(ctx, userId)
 
 	if err != nil {
+		slog.Error("Error getting user by ID", "error", err)
 		return "", errType, err
 	}
 	token, errType, err := r.Token.GenerateAccessToken(ctx, *user, refreshToken)
 
 	if err != nil {
+		slog.Error("Error generating access token", "error", err)
 		return "", errType, nil
 	}
 
@@ -107,12 +124,14 @@ func (r *authUtils) SendOTP(ctx context.Context, userID, name, email string) (ut
 	otp, errType, err := r.OTP.GenerateOTP(ctx, userID)
 
 	if err != nil {
+		slog.Error("Error generating OTP", "error", err)
 		return errType, err
 	}
 
 	errType, err = r.OTP.SendOTP(ctx, userID, name, *otp, email)
 
 	if err != nil {
+		slog.Error("Error sending OTP", "error", err)
 		return errType, err
 	}
 
@@ -123,6 +142,7 @@ func (r *authUtils) VerifyOTP(ctx context.Context, userID, otp string) (bool, ut
 
 	isValid, errType, err := r.OTP.VerifyOTP(ctx, otp, userID)
 	if err != nil {
+		slog.Error("Error verifying OTP", "error", err)
 		return false, errType, err
 	}
 	if !isValid {
@@ -130,6 +150,7 @@ func (r *authUtils) VerifyOTP(ctx context.Context, userID, otp string) (bool, ut
 	}
 	errType, err = r.UserRepo.UpdateUserVerification(ctx, userID)
 	if err != nil {
+		slog.Error("Error updating user verification", "error", err)
 		return true, errType, err
 	}
 

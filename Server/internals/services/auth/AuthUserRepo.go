@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -67,8 +68,10 @@ func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, pro
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			slog.Error("User not found by email", "email", email, "error", err)
 			return nil, nil, utils.ErrNotFound, errors.New("user not found")
 		}
+		slog.Error("Database error getting user by email", "error", err)
 		return nil, nil, utils.ErrInternal, err
 	}
 
@@ -96,8 +99,10 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			slog.Error("User not found by ID", "id", id, "error", err)
 			return nil, "", utils.ErrNotFound, errors.New("user not found")
 		}
+		slog.Error("Database error getting user by ID", "error", err)
 		return nil, "", utils.ErrInternal, err
 	}
 
@@ -151,9 +156,11 @@ func (r *userRepoServices) CreateUserCredentials(
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" {
+				slog.Error("User already exists", "email", email, "error", err)
 				return nil, utils.ErrConflict, errors.New("User already exsits")
 			}
 		}
+		slog.Error("Database error creating user", "error", err)
 		return nil, utils.ErrInternal, err
 	}
 
@@ -167,15 +174,18 @@ func (r *userRepoServices) DeleteUser(
 
 	userId, err := uuid.Parse(id)
 	if err != nil {
+		slog.Error("Invalid user ID format", "id", id, "error", err)
 		return false, utils.ErrBadRequest, errors.New("invalid user id")
 	}
 
 	cmd, err := r.db.Exec(ctx, "DELETE FROM users WHERE id = $1", userId)
 	if err != nil {
+		slog.Error("Database error deleting user", "error", err)
 		return false, utils.ErrInternal, err
 	}
 
 	if cmd.RowsAffected() == 0 {
+		slog.Error("User not found for deletion", "id", id)
 		return false, utils.ErrNotFound, errors.New("user not found")
 	}
 
@@ -185,16 +195,19 @@ func (r *userRepoServices) DeleteUser(
 func (r *userRepoServices) UpdatePassword(ctx context.Context, id string, newPassword string) (bool, utils.ErrorType, error) {
 	userId, err := uuid.Parse(id)
 	if err != nil {
+		slog.Error("Invalid user ID format", "id", id, "error", err)
 		return false, utils.ErrBadRequest, errors.New("please provide a valid user id to update the password ")
 	}
 	query := `UPDATE users SET password_hash = $1 , updated_at = NOW() WHERE id = $2`
 
 	cmd, err := r.db.Exec(ctx, query, newPassword, userId)
 	if err != nil {
+		slog.Error("Database error updating password", "error", err)
 		return false, utils.ErrInternal, err
 	}
 
 	if cmd.RowsAffected() == 0 {
+		slog.Error("User not found for password update", "id", id)
 		return false, utils.ErrNotFound, errors.New("user not found")
 	}
 
@@ -209,9 +222,11 @@ func (r *userRepoServices) UpdateUserVerification(ctx context.Context, userID st
 	`
 	cmd, err := r.db.Exec(ctx, query, userID)
 	if err != nil {
+		slog.Error("Database error updating user verification", "error", err)
 		return utils.ErrInternal, errors.New("unable to verify user :: " + err.Error())
 	}
 	if cmd.RowsAffected() == 0 {
+		slog.Error("User not found for verification update", "id", userID)
 		return utils.ErrNotFound, errors.New("unable to find user ")
 	}
 	return utils.NoError, nil

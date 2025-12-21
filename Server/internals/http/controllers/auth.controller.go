@@ -43,21 +43,25 @@ func (r *authController) CredentialSignIn(res http.ResponseWriter, req *http.Req
 	var loginCredentials types.LoginType
 	err := json.NewDecoder(req.Body).Decode(&loginCredentials)
 	if errors.Is(err, io.EOF) {
+		slog.Error("Error decoding JSON body (EOF)", "error", err)
 		utils.WriteJson(res, http.StatusUnprocessableEntity, utils.GenerateError(utils.ErrUnprocessableData, err))
 		return
 	}
 	if err != nil {
+		slog.Error("Error decoding JSON body", "error", err)
 		utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, err))
 		return
 	}
 	err = validator.New().Struct(loginCredentials)
 	if err != nil {
+		slog.Error("Validation error", "error", err)
 		validationErrors := err.(validator.ValidationErrors)
 		utils.WriteJson(res, http.StatusBadRequest, utils.ValidationError(validationErrors))
 		return
 	}
 	loggedInUser, accessToken, refreshToken, errType, err := r.services.CredentialSignIn(req.Context(), loginCredentials.Email, loginCredentials.Password)
 	if err != nil {
+		slog.Error("CredentialSignIn service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
@@ -93,21 +97,25 @@ func (r *authController) CredentialSignUp(res http.ResponseWriter, req *http.Req
 	var signUpCredentials types.RegisterType
 	err := json.NewDecoder(req.Body).Decode(&signUpCredentials)
 	if errors.Is(err, io.EOF) {
+		slog.Error("Error decoding JSON body (EOF)", "error", err)
 		utils.WriteJson(res, http.StatusUnprocessableEntity, utils.GenerateError(utils.ErrUnprocessableData, err))
 		return
 	}
 	if err != nil {
+		slog.Error("Error decoding JSON body", "error", err)
 		utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, err))
 		return
 	}
 	err = validator.New().Struct(signUpCredentials)
 	if err != nil {
+		slog.Error("Validation error", "error", err)
 		validationErrors := err.(validator.ValidationErrors)
 		utils.WriteJson(res, http.StatusBadRequest, utils.ValidationError(validationErrors))
 		return
 	}
 	registedUser, accessToken, refreshToken, errType, err := r.services.CredentialSignUp(req.Context(), signUpCredentials.Email, signUpCredentials.Name, signUpCredentials.Password)
 	if err != nil {
+		slog.Error("CredentialSignUp service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
@@ -142,6 +150,7 @@ func (r *authController) CredentialSignOut(res http.ResponseWriter, req *http.Re
 	slog.Info("LOGGING OUT USER ... ")
 	ClientSideToken, err := req.Cookie("refresh_token")
 	if err != nil {
+		slog.Error("Error retrieving refresh token cookie", "error", err)
 		utils.WriteJson(res, http.StatusUnauthorized, utils.GenerateError(utils.ErrUnauthorized, errors.New("please provide a valid refresh token")))
 		return
 	}
@@ -149,6 +158,7 @@ func (r *authController) CredentialSignOut(res http.ResponseWriter, req *http.Re
 	userCred, ok := req.Context().Value("USER").(*auth.User)
 
 	if !ok {
+		slog.Error("Failed to retrieve user from context")
 		utils.WriteJson(res, http.StatusForbidden, utils.GenerateError(utils.ErrForBidden, errors.New("please log in before login out you smart a**")))
 		return
 	}
@@ -156,6 +166,7 @@ func (r *authController) CredentialSignOut(res http.ResponseWriter, req *http.Re
 	_, errType, err := r.services.CredentialSignOut(req.Context(), userCred.Id.String(), ClientSideToken.Value)
 
 	if err != nil {
+		slog.Error("CredentialSignOut service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
@@ -192,23 +203,27 @@ func (r *authController) CredentialRefresh(res http.ResponseWriter, req *http.Re
 	var refreshCredentials types.RefreshTokenType
 	err := json.NewDecoder(req.Body).Decode(&refreshCredentials)
 	if err != nil {
+		slog.Error("Error decoding JSON body", "error", err)
 		utils.WriteJson(res, http.StatusUnprocessableEntity, utils.GenerateError(utils.ErrUnprocessableData, errors.New("Invalid JSON data ")))
 		return
 	}
 	err = validator.New().Struct(refreshCredentials)
 	if err != nil {
+		slog.Error("Validation error", "error", err)
 		validationErrors := err.(validator.ValidationErrors)
 		utils.WriteJson(res, http.StatusBadRequest, utils.ValidationError(validationErrors))
 		return
 	}
 	clientSiderefreshToken, err := req.Cookie("refresh_token")
 	if err != nil {
+		slog.Error("Error retrieving refresh token cookie", "error", err)
 		utils.WriteJson(res, http.StatusUnauthorized, utils.GenerateError(utils.ErrUnauthorized, errors.New("Please provide a valid refresh token")))
 		return
 	}
 	accessToken, errType, err := r.services.CredentialRefreshToken(req.Context(), clientSiderefreshToken.Value, refreshCredentials.Id)
 
 	if err != nil {
+		slog.Error("CredentialRefreshToken service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
@@ -235,11 +250,13 @@ func (r *authController) SendVerifyOTP(res http.ResponseWriter, req *http.Reques
 
 	userCred, ok := req.Context().Value("USER").(*auth.User)
 	if !ok {
+		slog.Error("Failed to retrieve user from context")
 		utils.WriteJson(res, http.StatusForbidden, utils.GenerateError(utils.ErrForBidden, errors.New("Please login to verify your account ... ")))
 		return
 	}
 	errType, err := r.services.SendOTP(req.Context(), userCred.Id.String(), userCred.Name, userCred.Email)
 	if err != nil {
+		slog.Error("SendOTP service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
@@ -255,27 +272,32 @@ func (r *authController) VerifyOTP(res http.ResponseWriter, req *http.Request) {
 	var verifyOTPCredentials types.VerifyOTPCredentials
 	err := json.NewDecoder(req.Body).Decode(&verifyOTPCredentials)
 	if err != nil {
+		slog.Error("Error decoding JSON body", "error", err)
 		utils.WriteJson(res, http.StatusUnprocessableEntity, utils.GenerateError(utils.ErrUnprocessableData, err))
 		return
 	}
 	err = validator.New().Struct(verifyOTPCredentials)
 	if err != nil {
+		slog.Error("Validation error", "error", err)
 		validationErrors := err.(validator.ValidationErrors)
 		utils.WriteJson(res, http.StatusBadRequest, utils.ValidationError(validationErrors))
 		return
 	}
 	userCred, ok := req.Context().Value("USER").(*auth.User)
 	if !ok {
+		slog.Error("Failed to retrieve user from context")
 		utils.WriteJson(res, http.StatusForbidden, utils.GenerateError(utils.ErrForBidden, errors.New("Please login first in order to verify your OTP")))
 		return
 	}
 	isValid, errType, err := r.services.VerifyOTP(req.Context(), userCred.Id.String(), verifyOTPCredentials.OTP)
 	if err != nil {
+		slog.Error("VerifyOTP service error", "error", err)
 		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 		return
 	}
 
 	if !isValid {
+		slog.Error("Invalid OTP provided")
 		utils.WriteJson(res, http.StatusBadRequest, utils.Response[string]{
 			Status:  http.StatusBadRequest,
 			Data:    "Invalid OTP",
