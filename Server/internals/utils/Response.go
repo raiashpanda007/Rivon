@@ -13,7 +13,7 @@ type Response[T any] struct {
 	Status  int    `json:"status"`
 	Data    T      `json:"data,omitempty"`
 	Message string `json:"message"`
-	Heading string `jsonL:"heading"`
+	Heading string `json:"heading"`
 }
 
 func WriteJson[T any](response http.ResponseWriter, status int, data Response[T]) error {
