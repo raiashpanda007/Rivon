@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/store",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "react-redux": "^9.2.0"
+  },
+  
+"exports": {
+  ".": "./src/index.ts",
+  "./hooks": "./src/hooks.ts",
+  "./reducers/*": "./src/reducers/*.ts"
+}
+
+}
