@@ -1,2 +1,2 @@
-export { store } from "./store.js"
-export { StoreProvider } from "./StoreProvider.js"
+export { store } from "./store"
+export { StoreProvider } from "./StoreProvider"
