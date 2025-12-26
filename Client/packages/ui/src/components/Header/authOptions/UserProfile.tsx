@@ -19,7 +19,7 @@ function UserProfile({ url }: UserProfileProps) {
         />
 
       ) : (
-        <FaUser className="text-lg text-white" />
+        <FaUser className="text-lg" />
       )}
     </Button>
   )

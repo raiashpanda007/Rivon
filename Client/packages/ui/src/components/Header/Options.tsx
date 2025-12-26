@@ -4,14 +4,22 @@ import { Button } from "@workspace/ui/components/button";
 
 function Options() {
   return (
-    <div className="w-1/6  flex items-center justify-evenly">
-      <Button className="cursor-pointer font-bold font-body" variant={"secondary"} >
-        <MdAttachMoney /> Betting
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        className="gap-2 font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
+      >
+        <MdAttachMoney className="text-lg" />
+        Betting
       </Button>
-      <Button className="cursor-pointer font-bold font-body bg-orange-500 hover:opacity-80 hover:bg-orange-500" variant={"default"} >
-        <BsGraphUp className='font-bold' /> Trading
+      <Button
+        variant="ghost"
+        className="gap-2 font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
+      >
+        <BsGraphUp className="text-lg" />
+        Trading
       </Button>
-    </div >
+    </div>
   )
 }
 

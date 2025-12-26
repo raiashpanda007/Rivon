@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react";
 import SignIn from "@workspace/ui/components/Header/authOptions/SignIn";
 import SignUp from "@workspace/ui/components/Header/authOptions/SignUP";
@@ -7,17 +9,17 @@ import UserProfile from "@workspace/ui/components/Header/authOptions/UserProfile
 function AuthOptions() {
   const [login, setLogin] = useState<boolean>(true);
   return (
-    <div className="w-1/6 h-full flex items-center justify-evenly">
+    <div className="flex items-center gap-3">
       {!login &&
         <>
-          <SignUp />
           <SignIn />
+          <SignUp />
         </>
       }
       {login &&
         <>
-          <SignOut />
           <UserProfile />
+          <SignOut />
         </>
       }
     </div>
