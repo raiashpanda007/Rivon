@@ -4,20 +4,20 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0"
   },
   "peerDependencies": {
+    "react": "^19.0.0",
     "typescript": "^5"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
     "react-redux": "^9.2.0"
   },
-  
-"exports": {
-  ".": "./src/index.ts",
-  "./hooks": "./src/hooks.ts",
-  "./reducers/*": "./src/reducers/*.ts"
-}
-
+  "exports": {
+    ".": "./src/index.ts",
+    "./hooks": "./src/hooks.ts",
+    "./reducers/*": "./src/reducers/*.ts"
+  }
 }

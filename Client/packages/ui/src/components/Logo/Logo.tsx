@@ -10,7 +10,7 @@ function Logo({ className }: LogoProps) {
         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
         <polyline points="17 6 23 6 23 12" />
       </svg>
-      <h1 className="font-bold text-4xl dark:text-white text-black" children={"Rivon"} />
+      <h1 className="font-bold text-4xl dark:text-white text-black">Rivon</h1>
     </div>
   )
 }

@@ -15,6 +15,7 @@
       "name": "base",
       "version": "0.0.1",
       "dependencies": {
+        "@workspace/store": "workspace:*",
         "@workspace/ui": "workspace:*",
         "lucide-react": "^0.475.0",
         "next": "16.0.10",
@@ -37,6 +38,7 @@
       "name": "bet",
       "version": "0.0.1",
       "dependencies": {
+        "@workspace/store": "workspace:*",
         "@workspace/ui": "workspace:*",
         "lucide-react": "^0.475.0",
         "next": "16.0.10",
@@ -59,6 +61,7 @@
       "name": "exchange",
       "version": "0.0.1",
       "dependencies": {
+        "@workspace/store": "workspace:*",
         "@workspace/ui": "workspace:*",
         "lucide-react": "^0.475.0",
         "next": "16.0.10",
@@ -132,8 +135,10 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@types/react": "^19.0.0",
       },
       "peerDependencies": {
+        "react": "^19.0.0",
         "typescript": "^5",
       },
     },
@@ -174,6 +179,7 @@
         "@types/react": "^19.1.9",
         "@types/react-dom": "^19.1.7",
         "@workspace/eslint-config": "workspace:*",
+        "@workspace/store": "workspace:*",
         "@workspace/typescript-config": "workspace:*",
         "eslint": "^9.32.0",
         "tailwindcss": "^4.1.11",

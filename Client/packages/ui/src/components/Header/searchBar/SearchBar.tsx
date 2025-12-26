@@ -1,5 +1,5 @@
 import { Input } from "@workspace/ui/components/input"
-import { Button } from "@workspace/ui/components/button"
+
 import { FaMagnifyingGlass } from 'react-icons/fa6';
 function SearchBar() {
   return (
