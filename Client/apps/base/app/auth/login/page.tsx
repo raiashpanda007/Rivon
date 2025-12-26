@@ -1,4 +1,9 @@
 import { LoginCard } from "@/components/Auth/LoginCard"
+import { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Login - Rivon",
+}
 
 function Page() {
   return (
