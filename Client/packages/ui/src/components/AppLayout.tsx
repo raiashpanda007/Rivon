@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="h-screen w-full flex flex-col overflow-hidden">
             <Header scrollDirection={scrollDirection} isScrolled={isScrolled} />
             <ScrollArea className="flex-1" viewportRef={viewportRef}>
-                <div className="pt-16 min-h-full">
+                <div className="pt-16 min-h-full w-full">
                     {children}
                 </div>
             </ScrollArea>
