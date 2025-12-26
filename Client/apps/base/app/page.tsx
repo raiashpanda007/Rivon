@@ -98,13 +98,13 @@ export default function Page() {
                 className="flex flex-col items-center justify-center gap-4 sm:flex-row pt-4"
               >
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button size="lg" className="h-12 px-8 text-base bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-lg shadow-orange-500/20">
+                  <Button size="lg" className="h-12 px-8 text-base bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-lg shadow-orange-500/20 cursor-pointer">
                     Start Trading
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button size="lg" variant="outline" className="h-12 px-8 text-base hover:text-orange-500 hover:border-orange-500/50">
-                    Explore Markets
+                  <Button size="lg" variant="outline" className="h-12 px-8 text-base hover:text-orange-500 hover:border-orange-500/50 cursor-pointer">
+                    Explore Betting Markets
                   </Button>
                 </motion.div>
               </motion.div>
