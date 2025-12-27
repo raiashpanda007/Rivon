@@ -11,8 +11,15 @@
       ],
       "@workspace/types": [
         "../types/src/*"
+      ],
+      "@workspace/store": [
+        "../store/src/index.ts"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
       ]
-    }
+    },
+    "jsx": "react-jsx"
   },
   "include": [
     "."

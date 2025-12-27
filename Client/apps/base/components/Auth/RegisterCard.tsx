@@ -18,7 +18,7 @@ import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { useState } from 'react';
 import ApiCaller from "@workspace/api-caller"
-
+import { RequestType } from "@workspace/api-caller";
 
 
 
@@ -46,7 +46,12 @@ export function RegisterCard() {
       return;
     }
 
-    console.log(name, email, password, repeatPassword);
+    const response = await ApiCaller({
+      requestType: RequestType.POST,
+      paths: ["auth", "credentials", "register"],
+      body: { name, email, password },
+      retry: false
+    })
   }
 
   return (
