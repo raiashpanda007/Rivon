@@ -1,3 +1,3 @@
-export * from './slices/userSlice.js';
-export * from './store.js';
-export * from './StoreProvider.js';
+export * from './slices/userSlice';
+export * from './store';
+export * from './StoreProvider';
