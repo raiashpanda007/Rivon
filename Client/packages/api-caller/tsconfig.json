@@ -9,9 +9,6 @@
       "@workspace/logger": [
         "../logger/src/*"
       ],
-      "@workspace/store": [
-        "../store/src/*"
-      ],
       "@workspace/types": [
         "../types/src/*"
       ]

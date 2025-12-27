@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@workspace/store": "workspace:*",
+    "@workspace/api-caller": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/types": "workspace:*",
     "@workspace/ui": "workspace:*",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.475.0",
