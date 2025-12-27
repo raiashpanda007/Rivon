@@ -17,7 +17,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { useState } from 'react';
-
+import ApiCaller from "@workspace/api-caller"
 
 
 
@@ -30,17 +30,23 @@ export function RegisterCard() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [repeatPassword, setRepeatPassword] = useState<string>("");
-
-
-
-
+  const [error, setError] = useState<string>("");
 
   async function CreateUserCall(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError("");
 
+    if (!name || !email || !password || !repeatPassword) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    if (password !== repeatPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
     console.log(name, email, password, repeatPassword);
-
   }
 
   return (
@@ -70,8 +76,12 @@ export function RegisterCard() {
         </CardHeader>
         <form onSubmit={CreateUserCall}>
           <CardContent>
-
             <div className="flex flex-col gap-6">
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-100 border border-red-200 rounded-md dark:bg-red-900/30 dark:border-red-900 dark:text-red-400">
+                  {error}
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label className="font-heading font-semibold" htmlFor="name">Name</Label>
                 <Input

@@ -1,3 +1,6 @@
-export * from './slices/userSlice.js';
-export * from './store.js';
-export * from './StoreProvider.js';
+// @ts-ignore
+export * from './slices/userSlice';
+// @ts-ignore
+export * from './store';
+// @ts-ignore
+export * from './StoreProvider';

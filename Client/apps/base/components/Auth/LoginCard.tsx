@@ -4,6 +4,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { FaGithub } from 'react-icons/fa';
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
   Card,
   CardAction,
@@ -18,6 +19,22 @@ import { Label } from "@workspace/ui/components/label"
 
 export function LoginCard() {
   const router = useRouter();
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    console.log("Login with:", email, password);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -41,9 +58,14 @@ export function LoginCard() {
             <Button variant="default" className="bg-orange-500 dark:text-white font-semibold font-body cursor-pointer hover:opacity-80 hover:bg-orange-500 drop-shadow-md" onClick={() => router.push("/auth/register")}>Sign up</Button>
           </CardAction>
         </CardHeader>
-        <CardContent>
-          <form>
+        <form onSubmit={handleLogin}>
+          <CardContent>
             <div className="flex flex-col gap-6">
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-100 border border-red-200 rounded-md dark:bg-red-900/30 dark:border-red-900 dark:text-red-400">
+                  {error}
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label className="font-heading font-semibold" htmlFor="email">Email</Label>
                 <Input
@@ -52,28 +74,36 @@ export function LoginCard() {
                   placeholder="ashwin@example.com"
                   required
                   className="placeholder:text-orange-500 placeholder:opacity-70 placeholder:font-semibold"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
                 </div>
-                <Input id="password" type="password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex-col gap-2">
-          <Button type="submit" className="w-full cursor-pointer font-heading font-semibold">
-            Sign In
-          </Button>
-          <Button variant="outline" className="w-full cursor-pointer">
-            <FcGoogle />Sign in with <span className='text-orange-500 font-semibold opacity-80'>Google</span>
-          </Button>
-          <Button variant="outline" className="w-full cursor-pointer">
-            <FaGithub />Sign in with <span className='text-orange-500 font-semibold opacity-80'>Github</span>
-          </Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter className="flex-col gap-2">
+            <Button type="submit" className="w-full cursor-pointer font-heading font-semibold">
+              Sign In
+            </Button>
+            <Button variant="outline" type="button" className="w-full cursor-pointer">
+              <FcGoogle />Sign in with <span className='text-orange-500 font-semibold opacity-80'>Google</span>
+            </Button>
+            <Button variant="outline" type="button" className="w-full cursor-pointer">
+              <FaGithub />Sign in with <span className='text-orange-500 font-semibold opacity-80'>Github</span>
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </motion.div>
   )
