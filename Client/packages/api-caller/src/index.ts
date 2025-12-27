@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import dotenv from "dotenv";
+import { config as _config } from 'dotenv'
 
 import {
   StatusCodes,
@@ -8,9 +8,8 @@ import {
 } from "@workspace/types/response";
 import { store } from "@workspace/store";
 
-dotenv.config();
 
-const BASE_URL = process.env.BASE_API_SERVER_URL ?? "http://localhost:8000";
+ const BASE_URL = process.env.NEXT_PUBLIC_BASE_API_SERVER_URL ?? "http://localhost:8000/api/rivon" ;
 
 const INVALID_ERROR: ApiResponse<string> = {
   status: 500,

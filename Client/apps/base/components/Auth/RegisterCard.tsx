@@ -5,6 +5,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { FaGithub } from 'react-icons/fa';
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from 'next/navigation';
+import { ShowResponseToast } from "@workspace/ui/components/toast";
 import {
   Card,
   CardAction,
@@ -45,13 +46,21 @@ export function RegisterCard() {
       setError("Passwords do not match");
       return;
     }
-
-    const response = await ApiCaller({
+    const response = await ApiCaller<{ name: string, email: string, password: string }, { id: string, type: string, name: string, email: string, provider: string, verified: boolean }>({
       requestType: RequestType.POST,
-      paths: ["auth", "credentials", "register"],
+      paths: ["api", "rivon", "auth", "credentials", "signup"],
       body: { name, email, password },
       retry: false
     })
+    ShowResponseToast({
+      heading: response.response.heading,
+      message: response.response.message,
+      statusCode: response.response.status,
+      type: response.ok ? "SUCESS" : "ERROR"
+    })
+
+    console.log("Response :: ", response.response);
+
   }
 
   return (
