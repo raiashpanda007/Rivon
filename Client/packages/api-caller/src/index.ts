@@ -6,6 +6,7 @@ import {
   type CODES,
   type ApiResponse,
 } from "@workspace/types/response";
+import { store } from "@workspace/store";
 
 dotenv.config();
 
@@ -40,6 +41,8 @@ export type ApiResult<T> =
   | { ok: true; response: ApiResponse<T> }
   | { ok: false; response: ApiResponse<string> };
 
+
+
 async function ApiCaller<TBody, TResp>({
   requestType,
   paths = [],
@@ -48,6 +51,7 @@ async function ApiCaller<TBody, TResp>({
   retry = false
 }: ApiCallerParameters<TBody>): Promise<ApiResult<TResp>> {
   const url = new URL(BASE_URL);
+  const userDetails = store.getState().user.userDetails;
 
 
   if (paths.length > 0) {
@@ -81,7 +85,7 @@ async function ApiCaller<TBody, TResp>({
           const res = await ApiCaller({
             requestType,
             paths: ["auth", "credentials", "refresh"],
-            body,
+            body: { id: userDetails?.id },
             queryParams,
             retry: false
           });
