@@ -1,15 +1,14 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { config as _config } from 'dotenv'
-
 import {
-  StatusCodes,
-  type CODES,
   type ApiResponse,
 } from "@workspace/types/response";
 import { store } from "@workspace/store";
 
 
- const BASE_URL = process.env.NEXT_PUBLIC_BASE_API_SERVER_URL ?? "http://localhost:8000/api/rivon" ;
+
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_API_SERVER_URL;
 
 const INVALID_ERROR: ApiResponse<string> = {
   status: 500,
@@ -49,6 +48,10 @@ async function ApiCaller<TBody, TResp>({
   queryParams,
   retry = false
 }: ApiCallerParameters<TBody>): Promise<ApiResult<TResp>> {
+  if (!BASE_URL) {
+    throw Error("PLEASE PROVIDE BASE API SERVER URL ");
+  }
+
   const url = new URL(BASE_URL);
   const userDetails = store.getState().user.userDetails;
 
@@ -112,4 +115,9 @@ async function ApiCaller<TBody, TResp>({
 
   }
 }
+
+export const getOAuthUrl = (provider: string) => {
+  return `${BASE_URL}/auth/oauth/${provider}`;
+}
+
 export default ApiCaller;

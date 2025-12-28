@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/raiashpanda007/rivon/internals/utils"
 	"log/slog"
 	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
 type OTPServices interface {
@@ -103,22 +104,20 @@ func (r *otpUtils) VerifyOTP(ctx context.Context, otp string, userID string) (bo
 }
 func (r *otpUtils) SendOTP(ctx context.Context, userID string, name string, otp string, email string) (utils.ErrorType, error) {
 	var template = fmt.Sprintf(`
-		Hi %s,
+		<h2 style="color: #ffffff; margin-top: 0; font-weight: 700;">Verify your email</h2>
+		<p>Hi %s,</p>
+		<p>Welcome to Rivon 👋 Thanks for signing up. To complete your registration, please verify your email using the OTP below:</p>
+		
+		<div class="otp-block">
+			<div class="otp-text">%s</div>
+			<div class="copy-instruction">This code expires in 5 minutes</div>
+		</div>
 
-		Welcome to Rivon 👋
-
-		Thanks for signing up. To complete your registration, please verify your email using the OTP below:
-
-		OTP: %s
-
-		This OTP is valid for a 5 minutes. If you didn’t request this, you can safely ignore this email.
-
-		Rivon is being built step by step, and I genuinely appreciate you trying it out early.
-
-		If you face any issues or have feedback, just reply to this email, I read everything.
-
-		Ashwin Rai
-		Creator, Rivon
+		<p>If you didn't request this, you can safely ignore this email.</p>
+		<br>
+		<p>Rivon is being built step by step, and I genuinely appreciate you trying it out early. If you face any issues or have feedback, just reply to this email, I read everything.</p>
+		<br>
+		<p>Ashwin Rai<br>Creator, Rivon</p>
 	`, name, otp)
 	payload := map[string]string{
 		"email":   email,

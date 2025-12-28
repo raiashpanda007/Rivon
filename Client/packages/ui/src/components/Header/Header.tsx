@@ -34,10 +34,6 @@ function Header({ scrollDirection: externalScrollDirection, isScrolled: external
 
   return (
     <>
-      {/* Placeholder to prevent content jump when header becomes fixed */}
-      {/* <div className="h-16 w-full" />  */}
-      {/* Note: If using ScrollArea, the placeholder might need to be outside or handled by padding */}
-
       <header
         className={cn(
           "fixed top-0 left-0 right-0 z-50 w-full h-16 flex items-center justify-between px-6 transition-all duration-300 ease-in-out",

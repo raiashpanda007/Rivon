@@ -34,26 +34,31 @@ const generateEmailTemplate = (content: string) => {
         .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
         .card { background-color: #09090b; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5); }
         .header { background-color: #09090b; padding: 32px; text-align: center; border-bottom: 1px solid #27272a; }
-        .logo { color: #f97316; font-size: 32px; font-weight: 800; letter-spacing: -1px; text-decoration: none; display: inline-block; }
-        .content { padding: 40px 32px; text-align: center; }
-        .message-box { background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 24px; margin: 24px 0; font-size: 24px; font-weight: 600; color: #f97316; letter-spacing: 1px; word-break: break-all; }
-        .text { color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
+        .content { padding: 40px 32px; text-align: left; }
+        .message-box { background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 32px; margin: 0; font-size: 16px; line-height: 1.8; color: #e4e4e7; }
         .footer { padding: 32px; text-align: center; color: #52525b; font-size: 12px; border-top: 1px solid #27272a; background-color: #09090b; }
+        .footer p { margin: 4px 0; }
+        .otp-block { background: #000000; border: 1px solid #27272a; border-radius: 8px; padding: 24px; text-align: center; margin: 24px 0; }
+        .otp-text { font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #f97316; user-select: all; }
+        .copy-instruction { margin-top: 12px; font-size: 13px; color: #71717a; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
             <div class="header">
-                <div class="logo">Rivon</div>
+                <div style="text-align: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                    </svg>
+                    <span style="vertical-align: middle; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -1px; margin-left: 8px;">Rivon</span>
+                </div>
             </div>
             <div class="content">
-                <div class="text">Hello,</div>
-                <div class="text">Here is your verification code or message:</div>
                 <div class="message-box">
                     ${content}
                 </div>
-                <div class="text">If you did not request this, please ignore this email.</div>
             </div>
             <div class="footer">
                 <p>&copy; ${new Date().getFullYear()} Rivon. All rights reserved.</p>
