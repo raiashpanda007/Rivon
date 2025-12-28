@@ -18,8 +18,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { useState } from 'react';
-import ApiCaller, { getOAuthUrl } from "@workspace/api-caller"
-import { RequestType } from "@workspace/api-caller";
+import ApiCaller, { getOAuthUrl, RequestType } from "@workspace/api-caller"
 import { useDispatch } from "react-redux";
 import { setUserDetails, ProviderType } from "@workspace/store";
 import Loading from "../Loading";
@@ -77,7 +76,8 @@ export function RegisterCard() {
         name: response.response.data.name,
         email: response.response.data.email,
         provider: response.response.data.provider as ProviderType,
-        verifiedStatus: response.response.data.verified
+        verifiedStatus: response.response.data.verified,
+        profile: ""
       }))
     }
 
@@ -179,11 +179,11 @@ export function RegisterCard() {
               <Button type="submit" id="register-form" className="w-full cursor-pointer font-heading  font-semibold">
                 Create Account
               </Button>
-              <Button variant="outline" className="w-full cursor-pointer" onClick={() => handleOAuthLogin('google')}>
-                <FcGoogle />Sign up with <span className='text-orange-500 font-semibold opacity-80' children="Google" />
+              <Button variant="outline" type="button" className="w-full cursor-pointer" onClick={() => handleOAuthLogin('google')}>
+                <FcGoogle />Sign up with <span className='text-orange-500 font-semibold opacity-80'>Google</span>
               </Button>
-              <Button variant="outline" className="w-full cursor-pointer" onClick={() => handleOAuthLogin('github')}>
-                <FaGithub />Sign up with <span className='text-orange-500 font-semibold opacity-80' children="Github" />
+              <Button variant="outline" type="button" className="w-full cursor-pointer" onClick={() => handleOAuthLogin('github')}>
+                <FaGithub />Sign up with <span className='text-orange-500 font-semibold opacity-80'>Github</span>
               </Button>
             </CardFooter>
           </form>

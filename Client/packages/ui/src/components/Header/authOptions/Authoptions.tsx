@@ -4,6 +4,7 @@ import SignIn from "@workspace/ui/components/Header/authOptions/SignIn";
 import SignUp from "@workspace/ui/components/Header/authOptions/SignUP";
 import SignOut from "@workspace/ui/components/Header/authOptions/SignOut";
 import UserProfile from "@workspace/ui/components/Header/authOptions/UserProfile";
+import WalletIcon from "@workspace/ui/components/Header/authOptions/Wallet";
 import { useSelector } from "react-redux";
 import type { RootState } from "@workspace/store";
 
@@ -26,8 +27,9 @@ function AuthOptions() {
       }
       {login &&
         <>
-          <UserProfile />
+          <UserProfile url={userDetails.profile} />
           <SignOut />
+          <WalletIcon />
         </>
       }
     </div>

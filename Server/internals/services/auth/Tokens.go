@@ -110,6 +110,7 @@ func (r *tokenUtils) GenerateAccessToken(ctx context.Context, user User, refresh
 		"email":    user.Email,
 		"verified": user.Verified,
 		"provider": user.Provider,
+		"profile":  user.Photo,
 		"exp":      time.Now().Add(10 * time.Minute).Unix(),
 		"issuedAt": time.Now().Unix(),
 	}
@@ -200,6 +201,11 @@ func (r *tokenUtils) VerifyAccessToken(ctx context.Context, accessToken string) 
 		slog.Error("Invalid or missing provider claim")
 		return nil, utils.ErrUnauthorized, errors.New("invalid provider claim")
 	}
+	photo, ok := claims["profile"].(string)
+	if !ok {
+		slog.Error("Invalid or missing profile claim")
+		return nil, utils.ErrUnauthorized, errors.New("invalid profile claim")
+	}
 	uid, err := uuid.Parse(idStr)
 	if err != nil {
 		slog.Error("Invalid user ID in token", "idStr", idStr, "error", err)
@@ -211,6 +217,7 @@ func (r *tokenUtils) VerifyAccessToken(ctx context.Context, accessToken string) 
 		Email:    email,
 		Verified: verified,
 		Provider: AuthProvider(provider),
+		Photo:    photo,
 	}, utils.NoError, nil
 
 }

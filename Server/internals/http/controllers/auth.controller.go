@@ -1,15 +1,18 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/markbates/goth/gothic"
 	"github.com/raiashpanda007/rivon/internals/services"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
 	"github.com/raiashpanda007/rivon/internals/types"
@@ -23,18 +26,22 @@ type AuthController interface {
 	CredentialRefresh(res http.ResponseWriter, req *http.Request)
 	SendVerifyOTP(res http.ResponseWriter, req *http.Request)
 	VerifyOTP(res http.ResponseWriter, req *http.Request)
+	OAuthLogin(res http.ResponseWriter, req *http.Request)
+	Me(res http.ResponseWriter, req *http.Request)
 }
 
 type authController struct {
-	services     auth.AuthServices
-	cookieSecure bool
+	services      auth.AuthServices
+	cookieSecure  bool
+	clientBaseURL string
 }
 
-func InitAuthController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool) AuthController {
+func InitAuthController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool, clientBaseUrl string) AuthController {
 	authSvc := services.InitAuthServices(pgDb, rDb, jwtSecret, mailServerURL)
 	return &authController{
-		services:     *authSvc,
-		cookieSecure: cookieSecure,
+		services:      *authSvc,
+		cookieSecure:  cookieSecure,
+		clientBaseURL: clientBaseUrl,
 	}
 }
 
@@ -126,7 +133,7 @@ func (r *authController) CredentialSignUp(res http.ResponseWriter, req *http.Req
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   15 * 60 * 60,
+		MaxAge:   15 * 60,
 	})
 	http.SetCookie(res, &http.Cookie{
 		Name:     "refresh_token",
@@ -312,4 +319,69 @@ func (r *authController) VerifyOTP(res http.ResponseWriter, req *http.Request) {
 		Message: "Congratulations now you are a verified user ... ",
 		Heading: "Request accepeted and processed",
 	})
+}
+
+func (r *authController) OAuthLogin(res http.ResponseWriter, req *http.Request) {
+	provider := auth.AuthProvider(chi.URLParam(req, "provider"))
+	ctx := context.WithValue(req.Context(), "provider", provider)
+	req = req.WithContext(ctx)
+	user, err := gothic.CompleteUserAuth(res, req)
+	if err != nil {
+		slog.Error("UNABLE TO GET USER DETAILS :: ", err)
+		http.Redirect(res, req, r.clientBaseURL+"/error?err="+err.Error(), http.StatusFound)
+		return
+	}
+
+	email := user.Email
+	if email == "" {
+		slog.Error("Unable to read user email ")
+		http.Redirect(res, req, r.clientBaseURL+"/error?err="+errors.New("From your oauth can't read email").Error(), http.StatusFound)
+		return
+	}
+	name := user.Name
+	profilePhoto := user.AvatarURL
+
+	_, accessToken, refreshToken, _, err := r.services.OAuth(req.Context(), email, name, profilePhoto, provider)
+	if err != nil {
+		slog.Error("OAuth service error", "error", err)
+
+	}
+
+	http.SetCookie(res, &http.Cookie{
+		Name:     "access_token",
+		Value:    string(accessToken),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.cookieSecure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   15 * 60,
+	})
+	http.SetCookie(res, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    string(refreshToken),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.cookieSecure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   7 * 24 * 60 * 60,
+	})
+	_ = gothic.Logout(res, req)
+	http.Redirect(res, req, r.clientBaseURL, http.StatusFound)
+}
+
+func (r *authController) Me(res http.ResponseWriter, req *http.Request) {
+	userCred, ok := req.Context().Value("USER").(*auth.User)
+	if !ok {
+		slog.Error("Failed to retrieve user from context")
+		utils.WriteJson(res, http.StatusForbidden, utils.GenerateError(utils.ErrForBidden, errors.New("Please login to get your details ")))
+		return
+	}
+
+	utils.WriteJson(res, http.StatusAccepted, utils.Response[auth.User]{
+		Status:  200,
+		Heading: "Request Accepted and processed",
+		Message: "Your logged in details",
+		Data:    *userCred,
+	})
+
 }

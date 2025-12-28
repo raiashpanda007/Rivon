@@ -19,6 +19,7 @@ type AuthServices interface {
 	CredentialRefreshToken(ctx context.Context, refreshToken, userId string) (string, utils.ErrorType, error)
 	SendOTP(ctx context.Context, userID, name, email string) (utils.ErrorType, error)
 	VerifyOTP(ctx context.Context, userID, otp string) (bool, utils.ErrorType, error)
+	OAuth(ctx context.Context, email, name, profile string, provider AuthProvider) (*User, AccessToken, RefreshToken, utils.ErrorType, error)
 }
 
 type authUtils struct {
@@ -155,4 +156,26 @@ func (r *authUtils) VerifyOTP(ctx context.Context, userID, otp string) (bool, ut
 	}
 
 	return true, utils.NoError, nil
+}
+
+func (r *authUtils) OAuth(ctx context.Context, email, name, profile string, provider AuthProvider) (*User, AccessToken, RefreshToken, utils.ErrorType, error) {
+	createdUser, errType, err := r.UserRepo.CreateUserOAuth(ctx, email, name, profile, provider)
+	if err != nil {
+		slog.Error("Error creating user credentials", "error", err)
+		return nil, "", "", errType, err
+	}
+	refreshToken, errType, err := r.Token.GenerateRefreshToken(ctx, createdUser.Id.String())
+	if err != nil {
+		slog.Error("Error generating refresh token", "error", err)
+		return nil, "", "", errType, err
+	}
+	accessToken, errType, err := r.Token.GenerateAccessToken(ctx, *createdUser, *refreshToken)
+	if err != nil {
+		slog.Error("Error generating access token", "error", err)
+		return nil, "", "", errType, err
+	}
+	rt := RefreshToken(*refreshToken)
+	at := AccessToken(*accessToken)
+	return createdUser, at, rt, utils.NoError, nil
+
 }

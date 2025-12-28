@@ -65,7 +65,9 @@ export function LoginCard() {
         name: response.response.data.name,
         email: response.response.data.email,
         provider: response.response.data.provider as ProviderType,
-        verifiedStatus: response.response.data.verified
+        verifiedStatus: response.response.data.verified,
+        profile: ""
+
       }));
 
       if (!response.response.data.verified) {

@@ -9,8 +9,8 @@ type Controllers struct {
 	AuthController
 }
 
-func NewController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool) Controllers {
-	auth := InitAuthController(pgDb, rDb, jwtSecret, mailServerURL, cookieSecure)
+func NewController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool, clientBaseURL string) Controllers {
+	auth := InitAuthController(pgDb, rDb, jwtSecret, mailServerURL, cookieSecure, clientBaseURL)
 	return Controllers{
 		AuthController: auth,
 	}

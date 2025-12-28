@@ -4,8 +4,10 @@ import { Button } from "@workspace/ui/components/button"
 import Link from "next/link"
 import { ArrowRight, BarChart3, ShieldCheck, Zap, Bot, GraduationCap, Globe2, Trophy, ArrowLeftRight, Coins } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
+import { useSelector } from "react-redux";
+import type { RootState } from "@workspace/store";
 import { motion, AnimatePresence } from "framer-motion"
-
+import AuthCheck from "@/components/Auth/AuthCheck"
 // Animation Variants
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -23,7 +25,9 @@ const staggerContainer = {
 }
 
 export default function Page() {
+
   const [showIntro, setShowIntro] = useState(true)
+
 
 
 
@@ -31,8 +35,13 @@ export default function Page() {
     setShowIntro(false)
   }, [])
 
+
+
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
+      <AuthCheck />
       <AnimatePresence mode="wait">
         {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
       </AnimatePresence>

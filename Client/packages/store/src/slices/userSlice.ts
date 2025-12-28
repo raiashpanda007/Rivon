@@ -12,6 +12,7 @@ export interface UserDetails {
   email: string;
   provider: ProviderType;
   verifiedStatus: boolean;
+  profile: string
 }
 
 export interface UserState {

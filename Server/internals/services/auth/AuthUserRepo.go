@@ -26,6 +26,7 @@ type User struct {
 	Name     string       `json:"name"`
 	Email    string       `json:"email"`
 	Verified bool         `json:"verified"`
+	Photo    string       `json:"profile"`
 	Provider AuthProvider `json:"provider"`
 }
 
@@ -37,6 +38,7 @@ type UserRepo interface {
 	GetUserByEmail(ctx context.Context, email string, provider AuthProvider) (*User, *string, utils.ErrorType, error)
 	GetUserByID(ctx context.Context, id string) (*User, string, utils.ErrorType, error)
 	CreateUserCredentials(ctx context.Context, email, name, passwordHash string) (*User, utils.ErrorType, error)
+	CreateUserOAuth(ctx context.Context, email, name, profile string, provider AuthProvider) (*User, utils.ErrorType, error)
 	DeleteUser(ctx context.Context, id string) (bool, utils.ErrorType, error)
 	UpdatePassword(ctx context.Context, id string, newPassword string) (bool, utils.ErrorType, error)
 	UpdateUserVerification(ctx context.Context, userID string) (utils.ErrorType, error)
@@ -109,12 +111,7 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 	return &user, password, utils.NoError, nil
 }
 
-func (r *userRepoServices) CreateUserCredentials(
-	ctx context.Context,
-	email string,
-	name string,
-	passwordHash string,
-) (*User, utils.ErrorType, error) {
+func (r *userRepoServices) CreateUserCredentials(ctx context.Context, email string, name string, passwordHash string) (*User, utils.ErrorType, error) {
 
 	var user User
 
@@ -230,4 +227,57 @@ func (r *userRepoServices) UpdateUserVerification(ctx context.Context, userID st
 		return utils.ErrNotFound, errors.New("unable to find user ")
 	}
 	return utils.NoError, nil
+}
+
+func (r *userRepoServices) CreateUserOAuth(ctx context.Context, email, name, profilePhoto string, provider AuthProvider) (*User, utils.ErrorType, error) {
+	var user User
+
+	query := `
+	INSERT INTO users (
+		id,
+		name,
+		email,
+		provider,
+		verified,
+		display_photo
+	)
+	VALUES ($1, $2, $3, $4, true, $5)
+	ON CONFLICT (email, provider)
+	DO UPDATE SET
+		name = EXCLUDED.name,
+		display_photo = EXCLUDED.display_photo
+	RETURNING
+		id,
+		type,
+		name,
+		email,
+		verified,
+		provider,
+		display_photo;
+	`
+
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		uuid.New(),
+		name,
+		email,
+		provider,
+		profilePhoto,
+	).Scan(
+		&user.Id,
+		&user.Type,
+		&user.Name,
+		&user.Email,
+		&user.Verified,
+		&user.Provider,
+		&user.Photo,
+	)
+
+	if err != nil {
+		slog.Error("Database error in OAuth upsert", "error", err)
+		return nil, utils.ErrInternal, err
+	}
+
+	return &user, utils.NoError, nil
 }

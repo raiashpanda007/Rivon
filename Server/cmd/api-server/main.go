@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/raiashpanda007/rivon/internals/config"
-	"github.com/raiashpanda007/rivon/internals/database"
-	"github.com/raiashpanda007/rivon/internals/http/routes"
 	"log"
 	"log/slog"
 	"net/http"
@@ -12,11 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/database"
+	"github.com/raiashpanda007/rivon/internals/http/routes"
+	"github.com/raiashpanda007/rivon/internals/services/auth"
 )
 
 func main() {
 	slog.Info("Starting api-server :: ")
 	cfg := config.MustLoad()
+
+	auth.NewOAuth(cfg.Auth.GoAuthSecret, cfg.Server.CookieSecure, cfg.Auth.GoogleClientID, cfg.Auth.GoogleClientSecret, cfg.Auth.GithubClientID, cfg.Auth.GithubClientSecret, "http://"+cfg.Server.ApiServerAddr+"/api/rivon")
 
 	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL)
 	if err != nil {

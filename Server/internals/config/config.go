@@ -18,6 +18,7 @@ type AuthConfig struct {
 	GoogleClientSecret string
 	GithubClientID     string
 	GithubClientSecret string
+	GoAuthSecret       string
 }
 type HttpServer struct {
 	ApiServerAddr string
@@ -28,6 +29,8 @@ type Config struct {
 	Server        HttpServer
 	Db            DataBase
 	MailServerURL string
+	IsProduction  bool
+	ClientBaseURL string
 }
 
 func mustEnv(key string) string {
@@ -57,6 +60,7 @@ func MustLoad() *Config {
 		GoogleClientSecret: mustEnv("GOOGLE_AUTH_CLIENT_SECRET"),
 		GithubClientID:     mustEnv("GITHUB_AUTH_CLIENT_ID"),
 		GithubClientSecret: mustEnv("GITHUB_AUTH_CLIENT_SECRET"),
+		GoAuthSecret:       mustEnv("GO_AUTH_COOKIE_SECRET"),
 	}
 	var httpCfg = HttpServer{
 		ApiServerAddr: mustEnv("API_SERVER_URL"),
@@ -71,5 +75,7 @@ func MustLoad() *Config {
 	cfg.Server = httpCfg
 	cfg.Db = dbCfg
 	cfg.MailServerURL = mustEnv("MAIL_SERVER_URL")
+	cfg.IsProduction = stringTobool(mustEnv("PRODUCTION"))
+	cfg.ClientBaseURL = mustEnv("CLIENT_BASE_URL")
 	return &cfg
 }

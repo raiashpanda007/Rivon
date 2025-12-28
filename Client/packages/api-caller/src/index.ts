@@ -117,7 +117,7 @@ async function ApiCaller<TBody, TResp>({
 }
 
 export const getOAuthUrl = (provider: string) => {
-  return `${BASE_URL}/auth/oauth/${provider}`;
+  return `${BASE_URL}/auth/${provider}`;
 }
 
 export default ApiCaller;
