@@ -34,12 +34,17 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 ### Client-Side (Frontend)
 The frontend is structured as a **Turborepo** monorepo containing:
 - **Apps**:
-  - `bet`: A Next.js 16 application for betting features.
-  - `exchange`: A Next.js 16 application for exchange features.
+  - `base`: The main landing and authentication application (Port 3000).
+  - `bet`: A Next.js 16 application for betting features (Port 3001).
+  - `exchange`: A Next.js 16 application for exchange features (Port 3002).
 - **Packages**:
   - Shared UI components (`@workspace/ui`).
+  - API Client (`@workspace/api-caller`).
+  - State Management (`@workspace/store`).
+  - Logging (`@workspace/logger`).
+  - Shared Types (`@workspace/types`).
   - Shared configurations (`eslint-config`, `typescript-config`).
-- **Tech Stack**: Next.js 16, React 19, TailwindCSS, TypeScript.
+- **Tech Stack**: Next.js 16, React 19, TailwindCSS, TypeScript, Redux Toolkit.
 
 ### Server-Side (Backend)
 The backend is initialized as a **Go module** with a custom CLI tool for managing microservices.
@@ -102,9 +107,11 @@ To start the development server for all apps:
 bun dev
 ```
 
-Or to run a specific app (e.g., `bet`):
+Or to run a specific app (e.g., `base`, `bet`):
 
 ```bash
+bun --filter base dev
+# or
 bun --filter bet dev
 ```
 
@@ -207,9 +214,10 @@ The server runs on port `8001` (default) and listens for email sending requests.
 Rivon/
 ├── Client/                  # Frontend Monorepo
 │   ├── apps/
+│   │   ├── base/            # Landing & Auth Application
 │   │   ├── bet/             # Betting Application
 │   │   └── exchange/        # Exchange Application
-│   ├── packages/            # Shared libraries (UI, configs)
+│   ├── packages/            # Shared libraries (UI, api-caller, store, etc.)
 │   └── ...
 ├── MailServer/              # Email Service (Bun/Express)
 ├── Server/                  # Backend Go Module
