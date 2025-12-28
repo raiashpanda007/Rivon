@@ -11,6 +11,9 @@
       ],
       "@workspace/store/*": [
         "../store/src/*"
+      ],
+      "@workspace/api-caller":[
+        "../api-caller/src/index.ts"
       ]
     }
   },

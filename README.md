@@ -5,7 +5,31 @@ Rivon is a modern sports trading and betting exchange, where you can but footbal
 ## PLEASE NOTE !!! 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change. But please make sure try to completely fix the issue then raise a pr and also not forget to update the docs and readme files. If you are raising a pr for both client side and server side then please try to raise it together not forcing anything but this is for fullstack students so they will get better exposure . And please keep pr standards high and make sure to raise pr for small changes also.
 
-## 🚀 Project Status
+## ✨ Key Features & Achievements
+
+### 🎨 Frontend (Client)
+- **Modern UI/UX**:
+  - **Landing Page**: A fully responsive, high-performance landing page with smooth animations and a "glassmorphism" aesthetic.
+  - **Authentication**: Beautifully designed `Login` and `Register` cards with entry animations (Framer Motion).
+  - **Interactive Elements**: Custom "Nice Toast" notifications, animated loading screens with blurred backgrounds, and dynamic buttons.
+  - **Design System**: A centralized UI package (`@workspace/ui`) ensuring consistency across apps using Tailwind CSS and custom fonts (Outfit).
+- **State Management**: Robust Redux implementation for managing user sessions and global state.
+- **API Integration**: A dedicated `api-caller` package to streamline communication between client and server.
+
+### ⚙️ Backend (Server)
+- **Microservices Architecture**: Built with Go, featuring a custom CLI for easy service management (scaffolding, building, running).
+- **Authentication System**:
+  - **Secure Auth**: JWT-based authentication with HTTP-only cookies.
+  - **OTP Verification**: Redis-backed One-Time Password system for secure email verification.
+  - **OAuth**: Infrastructure for Google and GitHub login integration.
+- **Database**: High-performance PostgreSQL connection pooling using `pgx`.
+- **Mail Service**: A standalone Bun service for handling transactional emails with custom HTML templates.
+
+### 🏗️ Infrastructure
+- **Monorepo**: Efficiently managed using Turborepo for the frontend and Go modules for the backend.
+- **Containerization**: Docker Compose setup for PostgreSQL and Redis dependencies.
+
+## 🏗️ Architecture & Tech Stack
 
 ### Client-Side (Frontend)
 The frontend is structured as a **Turborepo** monorepo containing:

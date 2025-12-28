@@ -25,7 +25,8 @@
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.6",
     "zod": "^3.25.76",
-    "@workspace/store": "workspace:*"
+    "@workspace/store": "workspace:*",
+    "@workspace/api-caller": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
