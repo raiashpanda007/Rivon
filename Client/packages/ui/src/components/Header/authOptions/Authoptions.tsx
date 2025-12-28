@@ -5,7 +5,7 @@ import SignUp from "@workspace/ui/components/Header/authOptions/SignUP";
 import SignOut from "@workspace/ui/components/Header/authOptions/SignOut";
 import UserProfile from "@workspace/ui/components/Header/authOptions/UserProfile";
 import { useSelector } from "react-redux";
-import { RootState } from "@workspace/store";
+import type { RootState } from "@workspace/store";
 
 function AuthOptions() {
   const userDetails = useSelector((state: RootState) => state.user.userDetails);

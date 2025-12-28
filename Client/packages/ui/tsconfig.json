@@ -6,6 +6,12 @@
       "@workspace/ui/*": [
         "./src/*"
       ],
+      "@workspace/store": [
+        "../store/src/index.ts"
+      ],
+      "@workspace/store/*": [
+        "../store/src/*"
+      ]
     }
   },
   "include": [
