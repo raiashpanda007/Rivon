@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/logger",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/node": "^25.0.3",
+    "fs": "^0.0.1-security",
+    "node": "^24.12.0",
+    "winston": "^3.19.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

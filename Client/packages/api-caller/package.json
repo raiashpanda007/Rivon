@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/api-caller",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "@workspace/logger": "workspace:*",
+    "@workspace/types": "workspace:*",
+    "@workspace/store": "workspace:*"
+  }
+}

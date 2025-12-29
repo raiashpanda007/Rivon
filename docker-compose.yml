@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=mypass
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+  otpredis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
