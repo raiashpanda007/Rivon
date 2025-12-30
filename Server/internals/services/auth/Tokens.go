@@ -93,6 +93,7 @@ func (r *tokenUtils) CheckValidRefreshToken(ctx context.Context, refreshToken st
 			errors.New("no active refresh token found, please login again")
 	}
 
+	slog.Error("Invalid or expired refresh token")
 	return false, nil, utils.ErrUnauthorized,
 		errors.New("invalid or expired refresh token")
 }

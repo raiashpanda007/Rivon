@@ -17,3 +17,10 @@ type RefreshTokenType struct {
 type VerifyOTPCredentials struct {
 	OTP string `json:"otp" validator:"required"`
 }
+
+type TransactionType string
+
+const (
+	DEBIT  TransactionType = "debit"
+	CREDIT TransactionType = "credit"
+)

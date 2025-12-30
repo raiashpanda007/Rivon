@@ -7,12 +7,15 @@ import (
 
 type Controllers struct {
 	AuthController
+	WalletController
 }
 
 func NewController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool, clientBaseURL string) Controllers {
 	auth := InitAuthController(pgDb, rDb, jwtSecret, mailServerURL, cookieSecure, clientBaseURL)
+	walletController := InitWalletController(pgDb)
 	return Controllers{
-		AuthController: auth,
+		AuthController:   auth,
+		WalletController: walletController,
 	}
 
 }

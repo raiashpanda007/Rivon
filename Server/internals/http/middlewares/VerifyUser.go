@@ -3,6 +3,7 @@ package middlewares
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/raiashpanda007/rivon/internals/services/auth"
@@ -14,11 +15,13 @@ func VerifyMiddleware(tokenProvider auth.TokenServices) func(http.Handler) http.
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 			ClientSideToken, err := req.Cookie("access_token")
 			if err != nil {
+				slog.Error("Error retrieving access token cookie", "error", err)
 				utils.WriteJson(res, http.StatusUnauthorized, utils.GenerateError(utils.ErrUnauthorized, errors.New("Please provide a valid access token")))
 				return
 			}
 			verifiedUser, errType, err := tokenProvider.VerifyAccessToken(req.Context(), ClientSideToken.Value)
 			if err != nil {
+				slog.Error("Error verifying access token", "error", err)
 				utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
 				return
 			}

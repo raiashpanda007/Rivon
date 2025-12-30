@@ -2,7 +2,6 @@ package routes
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/markbates/goth/gothic"
 	"github.com/raiashpanda007/rivon/internals/config"
@@ -10,9 +9,8 @@ import (
 	"github.com/raiashpanda007/rivon/internals/http/middlewares"
 )
 
-func NewAuthRouter(cfg *config.Config, pgDb *pgxpool.Pool, OtpRedis *redis.Client) chi.Router {
+func NewAuthRouter(cfg *config.Config, pgDb *pgxpool.Pool, Controllers controllers.Controllers) chi.Router {
 	router := chi.NewRouter()
-	Controllers := controllers.NewController(pgDb, OtpRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL)
 	Middlewares := middlewares.NewMiddlewares(cfg, pgDb)
 	router.Get("/{provider}", gothic.BeginAuthHandler)
 	router.Get("/{provider}/callback", Controllers.OAuthLogin)
