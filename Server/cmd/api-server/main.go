@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/database"
+	"github.com/raiashpanda007/rivon/internals/http/routes"
+	"github.com/raiashpanda007/rivon/internals/services/auth"
 	"log"
 	"log/slog"
 	"net/http"
@@ -9,11 +13,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/raiashpanda007/rivon/internals/config"
-	"github.com/raiashpanda007/rivon/internals/database"
-	"github.com/raiashpanda007/rivon/internals/http/routes"
-	"github.com/raiashpanda007/rivon/internals/services/auth"
 )
 
 func main() {

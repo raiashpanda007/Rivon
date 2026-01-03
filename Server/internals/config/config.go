@@ -1,11 +1,11 @@
 package config
 
 import (
+	"encoding/json"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 type DataBase struct {
@@ -24,13 +24,33 @@ type HttpServer struct {
 	ApiServerAddr string
 	CookieSecure  bool
 }
+type FootballStaticCountry struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Code   string `json:"code"`
+	Emblem string `json:"emblem"`
+}
+
+type FootballStaticLeague struct {
+	ID      int                   `json:"id"`
+	Name    string                `json:"name"`
+	Code    string                `json:"code"`
+	Emblem  string                `json:"emblem"`
+	Country FootballStaticCountry `json:"country"`
+}
+
+type FootballStaticCompetitions struct {
+	Competitions []FootballStaticLeague `json:"competitions"`
+}
+
 type Config struct {
-	Auth          AuthConfig
-	Server        HttpServer
-	Db            DataBase
-	MailServerURL string
-	IsProduction  bool
-	ClientBaseURL string
+	Auth               AuthConfig
+	Server             HttpServer
+	Db                 DataBase
+	MailServerURL      string
+	IsProduction       bool
+	ClientBaseURL      string
+	FootBallStaticData FootballStaticCompetitions
 }
 
 func mustEnv(key string) string {
@@ -40,12 +60,25 @@ func mustEnv(key string) string {
 	}
 	return val
 }
+
 func stringTobool(str string) bool {
 	if str == "TRUE" || str == "true" || str == "True" {
 		return true
 	}
 	return false
 }
+
+func ReadFromJSON() (*FootballStaticCompetitions, error) {
+	data, err := os.ReadFile("./internals/config/football_org_static.json")
+	if err != nil {
+		log.Fatal("Not football static json file found please get it up ready first :: ", err)
+		return nil, err
+	}
+	var competitions FootballStaticCompetitions
+	err = json.Unmarshal(data, &competitions)
+	return &competitions, err
+}
+
 func MustLoad() *Config {
 	var cfg Config
 	log.Print("Loading Config ... ")
@@ -54,6 +87,12 @@ func MustLoad() *Config {
 		log.Fatalln("ERROR ::  IN READING .env ", err.Error())
 		return nil
 	}
+
+	CompetiionStaticMetaData, err := ReadFromJSON()
+	if err != nil {
+		log.Fatal("Not a valid Static json to be read from football static json file :: ", err)
+	}
+	cfg.FootBallStaticData = *CompetiionStaticMetaData
 	var authCfg = AuthConfig{
 		AuthSecret:         mustEnv("AUTH_SECRET"),
 		GoogleClientID:     mustEnv("GOOGLE_AUTH_CLIENT_ID"),

@@ -1,3 +1,4 @@
 {
- "api-server": "./cmd/api-server"
+ "api-server": "./cmd/api-server",
+ "jobs": "./cmd/jobs"
 }
