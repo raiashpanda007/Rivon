@@ -9,8 +9,8 @@ import (
 )
 
 type DataBase struct {
-	PgDB  *pgxpool.Pool
-	Redis *redis.Client
+	PgDB     *pgxpool.Pool
+	OtpRedis *redis.Client
 }
 
 func Init_DB(pgUrl string, rdUrl string) (*DataBase, error) {
@@ -27,10 +27,10 @@ func Init_DB(pgUrl string, rdUrl string) (*DataBase, error) {
 	}
 
 	slog.Info("CONNECTED TO PG DB :: ")
-	Redis := redis.NewClient(&redis.Options{
+	OtpRedis := redis.NewClient(&redis.Options{
 		Addr: rdUrl,
 	})
-	_, err = Redis.Ping(ctx).Result()
+	_, err = OtpRedis.Ping(ctx).Result()
 	if err != nil {
 		slog.Error("REDIS Ping failed ", slog.Any("ERROR :: ", err))
 		return nil, err
@@ -38,8 +38,8 @@ func Init_DB(pgUrl string, rdUrl string) (*DataBase, error) {
 	slog.Info("CONNECTED TO REDIS DB :: ")
 
 	return &DataBase{
-		PgDB:  db,
-		Redis: Redis,
+		PgDB:     db,
+		OtpRedis: OtpRedis,
 	}, nil
 
 }

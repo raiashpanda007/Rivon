@@ -36,8 +36,8 @@ type authController struct {
 	clientBaseURL string
 }
 
-func InitAuthController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool, clientBaseUrl string) AuthController {
-	authSvc := services.InitAuthServices(pgDb, rDb, jwtSecret, mailServerURL)
+func InitAuthController(pgDb *pgxpool.Pool, otpRedis *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool, clientBaseUrl string) AuthController {
+	authSvc := services.InitAuthServices(pgDb, otpRedis, jwtSecret, mailServerURL)
 	return &authController{
 		services:      *authSvc,
 		cookieSecure:  cookieSecure,
