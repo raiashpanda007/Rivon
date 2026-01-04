@@ -36,7 +36,7 @@ CREATE TABLE seasons (
   football_org_id INT NOT NULL UNIQUE,
   season TEXT NOT NULL UNIQUE,
   period DATERANGE NOT NULL,
-  matches_played INT NOT NULL DEFAULT 0,
+  match_day INT NOT NULL DEFAULT 0,
   winner_team_id UUID REFERENCES teams(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
