@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/joho/godotenv"
 	"log"
 	"os"
@@ -51,6 +52,7 @@ type Config struct {
 	IsProduction       bool
 	ClientBaseURL      string
 	FootBallStaticData FootballStaticCompetitions
+	FootbalOrgApiKey   []string
 }
 
 func mustEnv(key string) string {
@@ -79,6 +81,19 @@ func ReadFromJSON() (*FootballStaticCompetitions, error) {
 	return &competitions, err
 }
 
+func getAllFootBallOrgAPIKeys() []string {
+	var keys []string
+
+	for i := 1; ; i++ {
+		key := os.Getenv(fmt.Sprintf("FOOTBALL_API_KEY_%d", i))
+		if key == "" {
+			break
+		}
+		keys = append(keys, key)
+	}
+
+	return keys
+}
 func MustLoad() *Config {
 	var cfg Config
 	log.Print("Loading Config ... ")
@@ -116,5 +131,7 @@ func MustLoad() *Config {
 	cfg.MailServerURL = mustEnv("MAIL_SERVER_URL")
 	cfg.IsProduction = stringTobool(mustEnv("PRODUCTION"))
 	cfg.ClientBaseURL = mustEnv("CLIENT_BASE_URL")
+	cfg.FootbalOrgApiKey = getAllFootBallOrgAPIKeys()
+	fmt.Println(cfg)
 	return &cfg
 }

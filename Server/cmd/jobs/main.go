@@ -20,4 +20,8 @@ func main() {
 	defer cancel()
 
 	jobs.RunStartUpJobs(ctx, db.PgDB, cfg)
+
+	if err := jobs.RunCronJobs(ctx, db.PgDB, cfg); err != nil {
+		panic(err)
+	}
 }
