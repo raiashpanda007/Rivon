@@ -132,6 +132,5 @@ func (r *cronJobs) UpdateLeagueStats(ctx context.Context) error {
 		})
 	}
 
-	// 🔥 THIS is where errors are "caught"
 	return g.Wait()
 }
