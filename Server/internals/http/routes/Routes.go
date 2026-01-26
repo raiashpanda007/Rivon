@@ -62,8 +62,9 @@ func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client)
 
 	AuthRouter := NewAuthRouter(cfg, PgDb, Controllers)
 	WalletRouter := NewWalletRouter(PgDb, cfg, Controllers)
+	FootBallMetaRouter := NewFootBallMetaRoutes(cfg, PgDb, Controllers)
 	router.Mount("/api/rivon/auth", AuthRouter)
 	router.Mount("/api/rivon/wallet", WalletRouter)
-
+	router.Mount("/api/rivon/football-meta", FootBallMetaRouter)
 	return router
 }

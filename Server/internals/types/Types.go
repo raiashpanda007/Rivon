@@ -105,3 +105,37 @@ type Team struct {
 	TLA       string `json:"tla"`
 	Crest     string `json:"crest"`
 }
+
+type StandingsQueryResponse struct {
+	ID              uuid.UUID
+	TeamID          uuid.UUID
+	LeagueID        uuid.UUID
+	SeasonID        uuid.UUID
+	PlayedGames     int
+	Won             int
+	Lost            int
+	Draw            int
+	Points          int
+	GoalsFor        int
+	GoalsAgainst    int
+	GoalsDifference int
+	Position        int
+	TeamName        string
+	TeamShortName   string
+	TeamCode        string
+	TeamTLA         string
+	TeamEmblem      string
+}
+
+type GetCompetitionMetaData struct {
+	ID                     uuid.UUID `json:"id"`
+	Name                   string    `json:"name"`
+	Code                   string    `json:"code"`
+	Emblem                 string    `json:"emblem"`
+	FootballOrgId          int       `json:"football_org_id"`
+	CountryId              uuid.UUID `json:"countryId"`
+	CountryName            string    `json:"countryName"`
+	CountryFootBallOrgCode int       `json:"countryFootBallOrgCode"`
+	CountryCode            string    `json:"countryCode"`
+	CountryEmblem          string    `json:"countryEmblem"`
+}

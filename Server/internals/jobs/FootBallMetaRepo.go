@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"log/slog"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/types"
-	"log"
-	"time"
 )
 
 type FootBallMetaRepo interface {
@@ -19,6 +21,9 @@ type FootBallMetaRepo interface {
 	SaveSeasons(ctx context.Context, season string, footballOrgID int, startDate, endDate time.Time, matchDay int, winnerTeamId *uuid.UUID, leagueId uuid.UUID) (uuid.UUID, error)
 	SaveTeamWithLeague(ctx context.Context, name, shortName, code, tla, emblem string, footballOrgId int, leagueId uuid.UUID, seasonId uuid.UUID) (*uuid.UUID, error)
 	SaveStandings(ctx context.Context, teamId uuid.UUID, leagueId uuid.UUID, seasonId uuid.UUID, playedGames int, won int, draw int, lost int, goalsFor int, goalsAgainst int, position int) error
+	GetCompetitionTeamStandings(ctx context.Context, leagueId, seasonId *uuid.UUID) ([]types.StandingsQueryResponse, error)
+	GetCompetitionMetaData(ctx context.Context, leagueId uuid.UUID) (types.GetCompetitionMetaData, error)
+	GetAllCompetitionMetaData(ctx context.Context) ([]types.GetCompetitionMetaData, error)
 }
 
 type footballMetaRepoServices struct {
@@ -39,6 +44,7 @@ func (r *footballMetaRepoServices) SaveCountries(ctx context.Context, name, embl
 	ct, err := r.db.Exec(ctx, query, uuid.New(), name, code, emblem, football_org_id)
 	if err != nil {
 		errMsg := fmt.Sprintf("Unable to save country in DB :: %s :: code :: %s :: Error :: %s", name, code, err.Error())
+		slog.Error("Unable to save country in DB", "error", err)
 		return errors.New(errMsg)
 	}
 	if ct.RowsAffected() == 0 {
@@ -74,6 +80,7 @@ func (r *footballMetaRepoServices) SaveCompetitions(ctx context.Context, name, c
 	)
 	if err != nil {
 		errMsg := fmt.Sprintf("Unable to save country in DB :: %s :: code :: %s :: Error :: %s", name, code, err.Error())
+		slog.Error("Unable to save league in DB", "error", err)
 		return errors.New(errMsg)
 	}
 	if ct.RowsAffected() == 0 {
@@ -82,6 +89,7 @@ func (r *footballMetaRepoServices) SaveCompetitions(ctx context.Context, name, c
 			footBallOrg_countryID,
 			name,
 		)
+		slog.Error("Country not found for football_org_countryID", "error", errors.New(errMsg))
 		return errors.New(errMsg)
 	}
 	log.Printf("Saved league :: %s :: %s", name, code)
@@ -91,6 +99,7 @@ func (r *footballMetaRepoServices) SaveCompetitions(ctx context.Context, name, c
 func (r *footballMetaRepoServices) SaveSeasons(ctx context.Context, season string, footballOrgID int, startDate, endDate time.Time, matchDay int, winnerTeamId *uuid.UUID, leagueId uuid.UUID) (uuid.UUID, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
+		slog.Error("Error starting transaction", "error", err)
 		return uuid.Nil, err
 	}
 	defer tx.Rollback(ctx)
@@ -133,6 +142,7 @@ func (r *footballMetaRepoServices) SaveSeasons(ctx context.Context, season strin
 	).Scan(&seasonID)
 
 	if err != nil {
+		slog.Error("Error saving season", "error", err)
 		return uuid.Nil, err
 	}
 
@@ -142,10 +152,12 @@ func (r *footballMetaRepoServices) SaveSeasons(ctx context.Context, season strin
 		ON CONFLICT DO NOTHING;
 	`, leagueId, seasonID)
 	if err != nil {
+		slog.Error("Error saving league season", "error", err)
 		return uuid.Nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		slog.Error("Error committing transaction", "error", err)
 		return uuid.Nil, err
 	}
 	return seasonID, nil
@@ -155,6 +167,7 @@ func (r *footballMetaRepoServices) SaveTeamWithLeague(ctx context.Context, name,
 	var teamId uuid.UUID
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
+		slog.Error("Error starting transaction", "error", err)
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
@@ -192,6 +205,7 @@ func (r *footballMetaRepoServices) SaveTeamWithLeague(ctx context.Context, name,
 	).Scan(&teamId)
 
 	if err != nil {
+		slog.Error("Error saving team", "error", err)
 		return nil, err
 	}
 
@@ -210,10 +224,16 @@ func (r *footballMetaRepoServices) SaveTeamWithLeague(ctx context.Context, name,
 		seasonId,
 	)
 	if err != nil {
+		slog.Error("Error saving team league", "error", err)
 		return nil, err
 	}
 
-	return &teamId, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		slog.Error("Error committing transaction", "error", err)
+		return nil, err
+	}
+
+	return &teamId, nil
 }
 
 func (r *footballMetaRepoServices) GetCompetitions(ctx context.Context) ([]types.LeagueStruct, error) {
@@ -224,6 +244,7 @@ func (r *footballMetaRepoServices) GetCompetitions(ctx context.Context) ([]types
 	`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
+		slog.Error("Error querying leagues", "error", err)
 		return leagues, err
 	}
 	defer rows.Close()
@@ -232,12 +253,14 @@ func (r *footballMetaRepoServices) GetCompetitions(ctx context.Context) ([]types
 		var league types.LeagueStruct
 		err := rows.Scan(&league.Id, &league.Name, &league.Code, &league.Emblem, &league.FootballOrgId, &league.CountryId, &league.CreatedAt, &league.UpdatedAt)
 		if err != nil {
+			slog.Error("Error scanning league", "error", err)
 			return leagues, err
 		}
 		leagues = append(leagues, league)
 	}
 
 	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating leagues", "error", err)
 		return leagues, err
 	}
 	return leagues, nil
@@ -245,7 +268,9 @@ func (r *footballMetaRepoServices) GetCompetitions(ctx context.Context) ([]types
 
 func (r *footballMetaRepoServices) SaveStandings(ctx context.Context, teamId uuid.UUID, leagueId uuid.UUID, seasonId uuid.UUID, playedGames int, won int, draw int, lost int, goalsFor int, goalsAgainst int, position int) error {
 	if won+draw+lost != playedGames {
-		return fmt.Errorf("invalid standings: won + draw + lost must equal played games")
+		err := fmt.Errorf("invalid standings: won + draw + lost must equal played games")
+		slog.Error("Invalid standings", "error", err)
+		return err
 	}
 
 	points := (won * 3) + draw
@@ -303,11 +328,162 @@ func (r *footballMetaRepoServices) SaveStandings(ctx context.Context, teamId uui
 		goalDifference,
 		position,
 	)
+	if err != nil {
+		slog.Error("Error saving standings", "error", err)
+	}
 
 	return err
 }
 
-func (r *footballMetaRepoServices) GetStandings() error {
+func (r *footballMetaRepoServices) GetCompetitionTeamStandings(ctx context.Context, leagueId, seasonId *uuid.UUID) ([]types.StandingsQueryResponse, error) {
+	var standings []types.StandingsQueryResponse
 
-	return nil
+	query := `
+	SELECT
+	  s.id,
+	  s.team_id,
+	  s.league_id,
+	  s.season_id,
+	  s.played_games,
+	  s.won,
+	  s.lost,
+	  s.draw,
+	  s.points,
+	  s.goals_for,
+	  s.goals_against,
+	  s.goal_difference,
+	  s.position,
+
+	  t.name,
+	  t.short_name,
+	  t.code,
+	  t.tla,
+	  t.emblem
+
+	FROM standings s
+	JOIN teams t ON t.id = s.team_id
+	WHERE
+	  ($1::uuid IS NULL OR s.league_id = $1)
+	  AND
+	  ($2::uuid IS NULL OR s.season_id = $2)
+	ORDER BY s.position ASC;
+	`
+
+	rows, err := r.db.Query(ctx, query, leagueId, seasonId)
+	if err != nil {
+		slog.Error("Error querying standings", "error", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var standing types.StandingsQueryResponse
+
+		err := rows.Scan(
+			&standing.ID,
+			&standing.TeamID,
+			&standing.LeagueID,
+			&standing.SeasonID,
+			&standing.PlayedGames,
+			&standing.Won,
+			&standing.Lost,
+			&standing.Draw,
+			&standing.Points,
+			&standing.GoalsFor,
+			&standing.GoalsAgainst,
+			&standing.GoalsDifference,
+			&standing.Position,
+
+			&standing.TeamName,
+			&standing.TeamShortName,
+			&standing.TeamCode,
+			&standing.TeamTLA,
+			&standing.TeamEmblem,
+		)
+		if err != nil {
+			slog.Error("Error scanning standing", "error", err)
+			return nil, err
+		}
+
+		standings = append(standings, standing)
+	}
+
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating standings", "error", err)
+		return nil, err
+	}
+
+	return standings, nil
+}
+
+func (r *footballMetaRepoServices) GetCompetitionMetaData(ctx context.Context, leagueId uuid.UUID) (types.GetCompetitionMetaData, error) {
+	query := `
+SELECT
+    l.id              AS league_id,
+    l.name            AS league_name,
+    l.code            AS league_code,
+    l.emblem          AS league_emblem,
+    l.football_org_id AS league_football_org_id,
+
+    c.id              AS country_id,
+    c.name            AS country_name,
+    c.code            AS country_code,
+    c.emblem          AS country_emblem,
+    c.football_org_id AS country_football_org_id
+FROM leagues l
+INNER JOIN countries c
+    ON l.country_id = c.id
+WHERE l.id = $1;
+	`
+	var competitionDetails types.GetCompetitionMetaData
+	err := r.db.QueryRow(ctx, query, leagueId).Scan(&competitionDetails.ID, &competitionDetails.Name, &competitionDetails.Code, &competitionDetails.Emblem, &competitionDetails.FootballOrgId, &competitionDetails.CountryId, &competitionDetails.CountryName, &competitionDetails.CountryCode, &competitionDetails.CountryEmblem, &competitionDetails.CountryFootBallOrgCode)
+
+	if err != nil {
+		slog.Error("Error getting competition meta data", "error", err)
+	}
+	return competitionDetails, err
+}
+
+func (r *footballMetaRepoServices) GetAllCompetitionMetaData(ctx context.Context) ([]types.GetCompetitionMetaData, error) {
+	query := `
+SELECT
+    l.id              AS league_id,
+    l.name            AS league_name,
+    l.code            AS league_code,
+    l.emblem          AS league_emblem,
+    l.football_org_id AS league_football_org_id,
+
+    c.id              AS country_id,
+    c.name            AS country_name,
+    c.code            AS country_code,
+    c.emblem          AS country_emblem,
+    c.football_org_id AS country_football_org_id
+FROM leagues l
+INNER JOIN countries c
+    ON l.country_id = c.id
+`
+	var allCompetitionDetails []types.GetCompetitionMetaData
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		slog.Error("Error querying competition meta data", "error", err)
+		return allCompetitionDetails, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var competitionDetails types.GetCompetitionMetaData
+		err := rows.Scan(&competitionDetails.ID, &competitionDetails.Name, &competitionDetails.Code, &competitionDetails.Emblem, &competitionDetails.FootballOrgId, &competitionDetails.CountryId, &competitionDetails.CountryName, &competitionDetails.CountryCode, &competitionDetails.CountryEmblem, &competitionDetails.CountryFootBallOrgCode)
+		if err != nil {
+			slog.Error("Error scanning competition meta data", "error", err)
+			return allCompetitionDetails, err
+		}
+
+		allCompetitionDetails = append(allCompetitionDetails, competitionDetails)
+	}
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating competition meta data", "error", err)
+		return allCompetitionDetails, err
+	}
+	return allCompetitionDetails, err
+
 }
