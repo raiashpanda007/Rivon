@@ -16,7 +16,7 @@ func NewOAuth(OAuthKey string, cookieSecure bool, GoogleClientId string, GoogleC
 	store.Options.Path = "/"
 	store.Options.HttpOnly = true
 	store.Options.Secure = cookieSecure
-	store.Options.SameSite = http.SameSiteLaxMode
+	store.Options.SameSite = http.SameSiteNoneMode
 
 	gothic.Store = store
 

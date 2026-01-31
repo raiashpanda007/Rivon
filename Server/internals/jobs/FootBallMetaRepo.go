@@ -24,6 +24,8 @@ type FootBallMetaRepo interface {
 	GetCompetitionTeamStandings(ctx context.Context, leagueId, seasonId *uuid.UUID) ([]types.StandingsQueryResponse, error)
 	GetCompetitionMetaData(ctx context.Context, leagueId uuid.UUID) (types.GetCompetitionMetaData, error)
 	GetAllCompetitionMetaData(ctx context.Context) ([]types.GetCompetitionMetaData, error)
+	GetAllSeasons(ctx context.Context) ([]types.GetSeason, error)
+	GetAllLeagueSeasons(ctx context.Context) ([]types.GetLeagueSeason, error)
 }
 
 type footballMetaRepoServices struct {
@@ -484,6 +486,71 @@ INNER JOIN countries c
 		slog.Error("Error iterating competition meta data", "error", err)
 		return allCompetitionDetails, err
 	}
-	return allCompetitionDetails, err
+	return allCompetitionDetails, nil
+
+}
+
+func (r *footballMetaRepoServices) GetAllSeasons(ctx context.Context) ([]types.GetSeason, error) {
+	var allSeasons []types.GetSeason
+	query := `
+		SELECT id , season, lower(period), upper(period), match_day, winner_team_id, created_at, updated_at
+		FROM seasons;
+ 	`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		slog.Error("Error in getting all seasons details", "error", err)
+		return allSeasons, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var season types.GetSeason
+		err := rows.Scan(&season.ID, &season.Season, &season.Period.Start, &season.Period.End, &season.MatchDay, &season.WinnerTeamID, &season.CreatedAt, &season.UpdatedAt)
+
+		if err != nil {
+			slog.Error("Error scanning competition meta data", "error", err)
+			return allSeasons, err
+		}
+		allSeasons = append(allSeasons, season)
+	}
+
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating competition meta data", "error", err)
+		return allSeasons, err
+	}
+
+	return allSeasons, nil
+
+}
+
+func (r *footballMetaRepoServices) GetAllLeagueSeasons(ctx context.Context) ([]types.GetLeagueSeason, error) {
+	var allLeagueSeason []types.GetLeagueSeason
+	query := `
+	SELECT league_id, season_id 
+	FROM league_seasons;
+	`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return allLeagueSeason, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var leagueSeason types.GetLeagueSeason
+		err := rows.Scan(&leagueSeason.LeagueID, &leagueSeason.SeasonID)
+		if err != nil {
+			slog.Error("Error scanning league season ", "error ", err)
+			return allLeagueSeason, err
+		}
+		allLeagueSeason = append(allLeagueSeason, leagueSeason)
+	}
+
+	if err := rows.Err(); err != nil {
+		slog.Error("Error in iterating league seasons", "error", err)
+		return allLeagueSeason, err
+	}
+
+	return allLeagueSeason, nil
 
 }

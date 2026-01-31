@@ -2,12 +2,12 @@ package wallet
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
@@ -49,7 +49,7 @@ func (r *walletRepoUtils) GetWalletInfo(ctx context.Context, userID string) (*Wa
 	`
 	err = r.pgDb.QueryRow(ctx, query, id).Scan(&wallet.Id, &wallet.UserId, &wallet.Balance, &wallet.CreatedAt, &wallet.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Error("Wallet not found for user", "userID", userID, "error", err)
 			return nil, utils.ErrNotFound, errors.New("Invalid User id not found associated wallet")
 		}

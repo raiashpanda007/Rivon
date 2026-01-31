@@ -13,5 +13,6 @@ func NewFootBallMetaRoutes(cfg *config.Config, pgDb *pgxpool.Pool, Controllers c
 	Middlewares := middlewares.NewMiddlewares(cfg, pgDb)
 	router.With(Middlewares.AuthVerifyMiddleware).Get("/standings", Controllers.GetCompetitionTeamStandings)
 	router.With(Middlewares.AuthVerifyMiddleware).Get("/competitions", Controllers.GetCompetitions)
+	router.With(Middlewares.AuthVerifyMiddleware).Get("/seasons", Controllers.GetAllSeasons)
 	return router
 }

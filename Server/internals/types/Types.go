@@ -139,3 +139,28 @@ type GetCompetitionMetaData struct {
 	CountryCode            string    `json:"countryCode"`
 	CountryEmblem          string    `json:"countryEmblem"`
 }
+
+type DateRangeJSON struct {
+	Start time.Time `json:"start"`
+	End   time.Time `json:"end"`
+}
+
+type GetSeason struct {
+	ID           uuid.UUID     `json:"id"`
+	Period       DateRangeJSON `json:"period"`
+	Season       string        `json:"season"`
+	MatchDay     int           `json:"matchDay"`
+	WinnerTeamID *uuid.UUID    `json:"winner"`
+	CreatedAt    time.Time     `json:"createdAt"`
+	UpdatedAt    time.Time     `json:"updatedAt"`
+}
+
+type GetLeagueSeason struct {
+	LeagueID uuid.UUID `json:"leagueId"`
+	SeasonID uuid.UUID `json:"seasonId"`
+}
+
+type GetSeasonResponse struct {
+	Seasons      []GetSeason       `json:"season"`
+	LeagueSeason []GetLeagueSeason `json:"leagueSeason"`
+}

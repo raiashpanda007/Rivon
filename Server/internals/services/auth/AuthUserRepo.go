@@ -2,11 +2,11 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/utils"
@@ -50,7 +50,7 @@ func NewUserRepo(pgDb *pgxpool.Pool) UserRepo {
 
 func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, provider AuthProvider) (*User, *string, utils.ErrorType, error) {
 	var user User
-	var password string
+	var password *string
 	err := r.db.QueryRow(
 		ctx,
 		`SELECT id, type, name, email, password_hash, verified, provider
@@ -69,7 +69,7 @@ func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, pro
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Error("User not found by email", "email", email, "error", err)
 			return nil, nil, utils.ErrNotFound, errors.New("user not found")
 		}
@@ -77,12 +77,12 @@ func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, pro
 		return nil, nil, utils.ErrInternal, err
 	}
 
-	return &user, &password, utils.NoError, nil
+	return &user, password, utils.NoError, nil
 }
 
 func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, string, utils.ErrorType, error) {
 	var user User
-	var password string
+	var password *string
 	err := r.db.QueryRow(
 		ctx,
 		`SELECT id, type, name, email, password_hash, verified, provider
@@ -100,7 +100,7 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Error("User not found by ID", "id", id, "error", err)
 			return nil, "", utils.ErrNotFound, errors.New("user not found")
 		}
@@ -108,7 +108,12 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 		return nil, "", utils.ErrInternal, err
 	}
 
-	return &user, password, utils.NoError, nil
+	pass := ""
+	if password != nil {
+		pass = *password
+	}
+
+	return &user, pass, utils.NoError, nil
 }
 
 func (r *userRepoServices) CreateUserCredentials(ctx context.Context, email string, name string, passwordHash string) (*User, utils.ErrorType, error) {

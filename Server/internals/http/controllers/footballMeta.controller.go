@@ -15,6 +15,7 @@ import (
 type FootballMetaController interface {
 	GetCompetitions(res http.ResponseWriter, req *http.Request)
 	GetCompetitionTeamStandings(res http.ResponseWriter, req *http.Request)
+	GetAllSeasons(res http.ResponseWriter, req *http.Request)
 }
 type footballRepoSvc struct {
 	svc footballmeta.FootballMetaServices
@@ -99,6 +100,26 @@ func (r *footballRepoSvc) GetCompetitionTeamStandings(res http.ResponseWriter, r
 		Message: "Standings Fetched",
 		Data:    result,
 		Status:  200,
+	})
+
+}
+
+func (r *footballRepoSvc) GetAllSeasons(res http.ResponseWriter, req *http.Request) {
+	allSeasons, allLeagueSeason, errType, err := r.svc.GetAllSeasons(req.Context())
+
+	if err != nil {
+		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
+		return
+	}
+
+	utils.WriteJson(res, http.StatusOK, utils.Response[types.GetSeasonResponse]{
+		Message: "Fetched all seasons.",
+		Heading: "OK",
+		Data: types.GetSeasonResponse{
+			Seasons:      allSeasons,
+			LeagueSeason: allLeagueSeason,
+		},
+		Status: http.StatusOK,
 	})
 
 }

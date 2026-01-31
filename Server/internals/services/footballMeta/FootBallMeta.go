@@ -16,6 +16,7 @@ import (
 type FootballMetaServices interface {
 	GetCompetitions(ctx context.Context, leagueId *uuid.UUID) ([]types.GetCompetitionMetaData, utils.ErrorType, error)
 	GetCompetitionTeamStandings(ctx context.Context, leagueId, seasonId *uuid.UUID) ([]types.StandingsQueryResponse, utils.ErrorType, error)
+	GetAllSeasons(ctx context.Context) ([]types.GetSeason, []types.GetLeagueSeason, utils.ErrorType, error)
 }
 
 type footballRepo struct {
@@ -67,4 +68,23 @@ func (r *footballRepo) GetCompetitionTeamStandings(ctx context.Context, leagueId
 	}
 
 	return result, utils.NoError, nil
+}
+
+func (r *footballRepo) GetAllSeasons(ctx context.Context) ([]types.GetSeason, []types.GetLeagueSeason, utils.ErrorType, error) {
+	var allSeasons []types.GetSeason
+	var allLeagueSeasons []types.GetLeagueSeason
+	allSeasons, err := r.repo.GetAllSeasons(ctx)
+
+	if err != nil {
+		slog.Error("Error in getting all season service", "error", err)
+		return allSeasons, allLeagueSeasons, utils.ErrInternal, err
+	}
+	allLeagueSeasons, err = r.repo.GetAllLeagueSeasons(ctx)
+
+	if err != nil {
+		slog.Error("Error in getting all league season service ", "error", err)
+		return allSeasons, allLeagueSeasons, utils.ErrInternal, err
+	}
+
+	return allSeasons, allLeagueSeasons, utils.NoError, nil
 }
