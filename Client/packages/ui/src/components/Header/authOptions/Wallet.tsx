@@ -7,7 +7,6 @@ function WalletIcon() {
   async function GetWalletStatus() {
     const response = await ApiCaller<undefined, { id: string, userId: string, balance: number }>({
       requestType: RequestType.GET,
-      retry: false,
       paths: ["api", "rivon", "wallet", "me"]
     });
     if (response.ok) {

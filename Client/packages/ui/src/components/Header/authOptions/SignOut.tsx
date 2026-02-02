@@ -36,7 +36,6 @@ function SignOut() {
         paths: ["api", "rivon", "auth", "credentials", "signout"],
         requestType: RequestType.DELETE,
         body: { id },
-        retry: false
       });
 
       ShowResponseToast({
@@ -47,7 +46,8 @@ function SignOut() {
       });
 
       dispatch(clearUserDetails());
-      router.replace(BASE_APP_URL)
+      localStorage.setItem("logout-event", Date.now().toString());
+      window.location.href = BASE_APP_URL;
     } catch (error: any) {
       ShowResponseToast({
         heading: "Error",

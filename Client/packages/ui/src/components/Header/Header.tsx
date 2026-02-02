@@ -37,7 +37,7 @@ function Header({ scrollDirection: externalScrollDirection, isScrolled: external
       <header
         className={cn(
           "fixed top-0 left-0 right-0 z-50 w-full h-16 flex items-center justify-between px-6 transition-all duration-300 ease-in-out",
-          scrollDirection === "down" ? "-translate-y-full" : "translate-y-0",
+          "translate-y-0",
           isScrolled
             ? "bg-background/80 backdrop-blur-xl border-b border-border/40 shadow-sm supports-[backdrop-filter]:bg-background/60"
             : "bg-transparent border-b border-transparent"

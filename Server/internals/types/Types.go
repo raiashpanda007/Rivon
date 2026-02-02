@@ -107,24 +107,24 @@ type Team struct {
 }
 
 type StandingsQueryResponse struct {
-	ID              uuid.UUID
-	TeamID          uuid.UUID
-	LeagueID        uuid.UUID
-	SeasonID        uuid.UUID
-	PlayedGames     int
-	Won             int
-	Lost            int
-	Draw            int
-	Points          int
-	GoalsFor        int
-	GoalsAgainst    int
-	GoalsDifference int
-	Position        int
-	TeamName        string
-	TeamShortName   string
-	TeamCode        string
-	TeamTLA         string
-	TeamEmblem      string
+	ID              uuid.UUID `json:"id"`
+	TeamID          uuid.UUID `json:"teamId"`
+	LeagueID        uuid.UUID `json:"leagueId"`
+	SeasonID        uuid.UUID `json:"seasonId"`
+	PlayedGames     int       `json:"playedGames"`
+	Won             int       `json:"won"`
+	Lost            int       `json:"lost"`
+	Draw            int       `json:"draw"`
+	Points          int       `json:"points"`
+	GoalsFor        int       `json:"goalsFor"`
+	GoalsAgainst    int       `json:"goalsAgainst"`
+	GoalsDifference int       `json:"goalDifference"`
+	Position        int       `json:"position"`
+	TeamName        string    `json:"teamName"`
+	TeamShortName   string    `json:"teamShortName"`
+	TeamCode        string    `json:"teamCode"`
+	TeamTLA         string    `json:"teamTLA"`
+	TeamEmblem      string    `json:"teamEmblem"`
 }
 
 type GetCompetitionMetaData struct {

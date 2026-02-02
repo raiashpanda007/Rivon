@@ -5,7 +5,7 @@ import Header from "@workspace/ui/components/Header/Header";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { useScrollDirection } from "@workspace/ui/hooks/useScrollDirection";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState, setUserDetails, ProviderType } from "@workspace/store";
+import { RootState, setUserDetails, clearUserDetails, ProviderType } from "@workspace/store";
 import ApiCaller, { RequestType } from "@workspace/api-caller";
 
 interface AppLayoutProps {
@@ -40,8 +40,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 const response = await ApiCaller<undefined, { id: string, type: string, name: string, email: string, provider: string, verified: boolean, profile: string }>({
                     requestType: RequestType.GET,
                     paths: ["api", "rivon", "auth", "me"],
-                    body: undefined,
-                    retry: false
+                    body: undefined
                 });
 
                 if (response.ok && response.response.data) {
@@ -59,6 +58,19 @@ export function AppLayout({ children }: AppLayoutProps) {
             }
         }
         checkAuth();
+    }, [dispatch]);
+
+
+
+    useEffect(() => {
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === 'logout-event') {
+                dispatch(clearUserDetails());
+                window.location.reload();
+            }
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
     }, [dispatch]);
 
     return (

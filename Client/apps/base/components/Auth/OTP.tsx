@@ -13,7 +13,7 @@ import Loading from "../Loading";
 
 
 async function RequestOTP() {
-  const response = await ApiCaller<undefined, string>({ paths: ["api", "rivon", "auth", "verify", "send_otp"], requestType: RequestType.POST, retry: false });
+  const response = await ApiCaller<undefined, string>({ paths: ["api", "rivon", "auth", "verify", "send_otp"], requestType: RequestType.POST });
   ShowResponseToast({
     heading: response.response.heading,
     message: response.response.message,
@@ -52,7 +52,7 @@ export function InputOTPPattern() {
     }
     const OTPStr = value.toString();
     setLoading(true);
-    const response = await ApiCaller<{ otp: string }, string>({ requestType: RequestType.POST, body: { otp: OTPStr }, paths: ["api", "rivon", "auth", "verify", "verify_otp"], retry: false });
+    const response = await ApiCaller<{ otp: string }, string>({ requestType: RequestType.POST, body: { otp: OTPStr }, paths: ["api", "rivon", "auth", "verify", "verify_otp"] });
     console.log("Response :: ", response);
     setLoading(false);
     ShowResponseToast({
