@@ -19,7 +19,7 @@ export default function AuthCheck() {
       const response = await ApiCaller<undefined, { id: string, name: string, email: string, provider: string, verified: boolean, profile: string | undefined }>({
         requestType: RequestType.GET,
         paths: ["api", "rivon", "auth", "me"],
-        retry: false,
+
 
       });
 

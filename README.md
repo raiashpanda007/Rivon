@@ -5,6 +5,22 @@ Rivon is a modern sports trading and betting exchange, where you can but footbal
 ## PLEASE NOTE !!! 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change. But please make sure try to completely fix the issue then raise a pr and also not forget to update the docs and readme files. If you are raising a pr for both client side and server side then please try to raise it together not forcing anything but this is for fullstack students so they will get better exposure . And please keep pr standards high and make sure to raise pr for small changes also.
 
+## 🚀 Current Status & Recent Highlights
+
+We have made significant progress in building the core **Exchange Application**, focusing on data visualization and user experience.
+
+### **Latest Features:**
+- **Dynamic League Hub**: A visually stunning dashboard in the Exchange app (`apps/exchange`) allows users to explore football leagues with a premium "glassmorphism" UI.
+- **Smart Standings Engine**: 
+  - **Champions League Logic**: The standings table now intelligently adapts handling for the UCL format (Top 8 Qualify, 9-24 Play-off, Bottom 8 Eliminated).
+  - **Standard Leagues**: Automatically switches to standard promotion/relegation rules for leagues like Premier League or La Liga.
+  - **Visual Indicators**: Color-coded zones (Green/Yellow/Red) and animations make understanding team positions instant.
+- **Season Navigation**: Users can seamlessly switch between current and historical seasons to analyze team performance over time.
+- **Premium UI/UX Polish**: 
+  - Extensive use of **Framer Motion** for smooth page transitions and element entry.
+  - **Scroll-Aware Header**: A smart header component that adapts its visibility and transparency based on user scroll behavior.
+  - **Interactive Elements**: Hover effects, gradient text, and custom illustrations (e.g., specific messages for La Liga being a "Real Madrid bias" league 😉).
+
 ## ✨ Key Features & Achievements
 
 ### 🎨 Frontend (Client)
@@ -216,7 +232,7 @@ Rivon/
 │   ├── apps/
 │   │   ├── base/            # Landing & Auth Application
 │   │   ├── bet/             # Betting Application
-│   │   └── exchange/        # Exchange Application
+│   │   ├── exchange/        # Exchange Application
 │   ├── packages/            # Shared libraries (UI, api-caller, store, etc.)
 │   └── ...
 ├── MailServer/              # Email Service (Bun/Express)

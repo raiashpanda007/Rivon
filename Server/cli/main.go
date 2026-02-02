@@ -128,6 +128,7 @@ func start(target ...string) {
 			if err != nil {
 				log.Fatalf("UNABLE TO START THE APPILCAITON :: %s :: %s", name, err.Error())
 			}
+			log.Printf("APPLICATION FINISHED :: %s", name)
 
 		}(name, servicePath)
 

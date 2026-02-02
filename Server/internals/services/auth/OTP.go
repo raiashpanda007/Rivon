@@ -23,17 +23,17 @@ type OTPServices interface {
 }
 
 type otpUtils struct {
-	rdb           *redis.Client
+	otpRedis      *redis.Client
 	mailServerUrl string
 }
 
-func NewOTPServices(rdb *redis.Client, mailServerURL string) OTPServices {
-	return &otpUtils{rdb: rdb, mailServerUrl: mailServerURL}
+func NewOTPServices(otpRedis *redis.Client, mailServerURL string) OTPServices {
+	return &otpUtils{otpRedis: otpRedis, mailServerUrl: mailServerURL}
 }
 
 func (r *otpUtils) GetValidOTPfromRedis(ctx context.Context, userId string, regen bool) (*string, error) {
 	keyString := fmt.Sprintf("auth:otp:%s", userId)
-	otpRes, err := r.rdb.Get(ctx, keyString).Result()
+	otpRes, err := r.otpRedis.Get(ctx, keyString).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
@@ -42,7 +42,7 @@ func (r *otpUtils) GetValidOTPfromRedis(ctx context.Context, userId string, rege
 		return nil, errors.New("Unable to get exisitng OTPs :: " + err.Error())
 	}
 	if regen {
-		err = r.rdb.Set(ctx, keyString, otpRes, 5*time.Minute).Err()
+		err = r.otpRedis.Set(ctx, keyString, otpRes, 5*time.Minute).Err()
 		if err != nil {
 			slog.Error("Redis set error (regen)", "error", err)
 			return nil, errors.New("Unable to save regenerated otp :: " + err.Error())
@@ -70,7 +70,7 @@ func (r *otpUtils) GenerateOTP(ctx context.Context, userID string) (*string, uti
 	}
 	otp = fmt.Sprintf("%06d", n)
 	keyString := fmt.Sprintf("auth:otp:%s", userID)
-	err = r.rdb.Set(ctx, keyString, otp, 5*time.Minute).Err()
+	err = r.otpRedis.Set(ctx, keyString, otp, 5*time.Minute).Err()
 	if err != nil {
 		slog.Error("Redis set error (new OTP)", "error", err)
 		return nil, utils.ErrInternal, errors.New("Unable to save the generated otp :: " + err.Error())
@@ -91,7 +91,7 @@ func (r *otpUtils) VerifyOTP(ctx context.Context, otp string, userID string) (bo
 
 	if *existingOTP == otp {
 		keyString := fmt.Sprintf("auth:otp:%s", userID)
-		err = r.rdb.Del(ctx, keyString).Err()
+		err = r.otpRedis.Del(ctx, keyString).Err()
 		if err != nil {
 			slog.Error("Redis delete error", "error", err)
 			return false, utils.ErrInternal, errors.New("Unable to delete the matched key :: " + err.Error())

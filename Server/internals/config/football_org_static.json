@@ -1,0 +1,76 @@
+{
+  "competitions": [
+    {
+      "id": 2021,
+      "name": "Premier League",
+      "code": "PL",
+      "emblem": "https://crests.football-data.org/PL.png",
+      "country": {
+        "id": 2072,
+        "name": "England",
+        "code": "ENG",
+        "emblem": "https://crests.football-data.org/770.svg"
+      }
+    },
+    {
+      "id": 2014,
+      "name": "La Liga",
+      "code": "PD",
+      "emblem": "https://crests.football-data.org/laliga.png",
+      "country": {
+        "id": 2224,
+        "name": "Spain",
+        "code": "ESP",
+        "emblem": "https://crests.football-data.org/760.svg"
+      }
+    },
+    {
+      "id": 2001,
+      "name": "UEFA Champions League",
+      "code": "CL",
+      "emblem": "https://crests.football-data.org/CL.png",
+      "country": {
+        "id": 2077,
+        "name": "Europe",
+        "code": "EUR",
+        "emblem": "https://crests.football-data.org/EUR.svg"
+      }
+    },
+    {
+      "id": 2002,
+      "name": "Bundesliga",
+      "code": "BL1",
+      "emblem": "https://crests.football-data.org/BL1.png",
+      "country": {
+        "id": 2088,
+        "name": "Germany",
+        "code": "DEU",
+        "emblem": "https://crests.football-data.org/759.svg"
+      }
+    },
+    {
+      "id": 2015,
+      "name": "Ligue 1",
+      "code": "FL1",
+      "emblem": "https://crests.football-data.org/FL1.png",
+      "country": {
+        "id": 2081,
+        "name": "France",
+        "code": "FRA",
+        "emblem": "https://crests.football-data.org/773.svg"
+      }
+    },
+    {
+      "id": 2019,
+      "name": "Serie A",
+      "code": "SA",
+      "emblem": "https://crests.football-data.org/SA.png",
+      "country": {
+        "id": 2114,
+        "name": "Italy",
+        "code": "ITA",
+        "emblem": "https://crests.football-data.org/784.svg"
+      }
+    }
+  ]
+}

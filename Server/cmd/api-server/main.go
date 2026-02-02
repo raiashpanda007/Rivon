@@ -27,7 +27,7 @@ func main() {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}
 
-	router := routes.InitRouters(cfg, Db.PgDB, Db.Redis)
+	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,

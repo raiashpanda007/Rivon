@@ -1,0 +1,14 @@
+
+BEGIN;
+
+DROP TABLE IF EXISTS standings;
+DROP TABLE IF EXISTS teams_leagues;
+
+DROP TABLE IF EXISTS league_seasons;
+
+DROP TABLE IF EXISTS seasons;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS leagues;
+DROP TABLE IF EXISTS countries;
+
+COMMIT;

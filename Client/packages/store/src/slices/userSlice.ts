@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import Cookies from 'js-cookie';
 
 export enum ProviderType {
   GOOGLE = "google",
@@ -19,11 +20,11 @@ export interface UserState {
   userDetails: UserDetails | null;
 }
 
-function GetUserMetaDataFromLocolStorage(): UserDetails | null {
+export function GetUserMetaDataFromLocolStorage(): UserDetails | null {
   if (typeof window === 'undefined') return null;
-  const valueFromLocalStorage = localStorage.getItem("User_meta_data");
+  const valueFromCookie = Cookies.get("User_meta_data");
   try {
-    return valueFromLocalStorage ? JSON.parse(valueFromLocalStorage) : null;
+    return valueFromCookie ? JSON.parse(valueFromCookie) : null;
   } catch (e) {
     return null;
   }
@@ -41,7 +42,7 @@ export const userSlice = createSlice({
       state.userDetails = action.payload;
       try {
         const userDetailsString = JSON.stringify(action.payload);
-        localStorage.setItem("User_meta_data", userDetailsString);
+        Cookies.set("User_meta_data", userDetailsString, { expires: 7 }); // Expires in 7 days
       } catch (e) {
         console.error("UNABLE TO UPDATE USER INFO ON CLIENT SIDE :: ", e);
       }
@@ -49,7 +50,7 @@ export const userSlice = createSlice({
     clearUserDetails: (state) => {
       state.userDetails = null;
       try {
-        localStorage.removeItem("User_meta_data");
+        Cookies.remove("User_meta_data");
       } catch (e) {
         console.error("UNABLE TO CLEAR USER INFO ON CLIENT SIDE :: ", e);
       }

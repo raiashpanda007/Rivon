@@ -36,8 +36,8 @@ type authController struct {
 	clientBaseURL string
 }
 
-func InitAuthController(pgDb *pgxpool.Pool, rDb *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool, clientBaseUrl string) AuthController {
-	authSvc := services.InitAuthServices(pgDb, rDb, jwtSecret, mailServerURL)
+func InitAuthController(pgDb *pgxpool.Pool, otpRedis *redis.Client, jwtSecret string, mailServerURL string, cookieSecure bool, clientBaseUrl string) AuthController {
+	authSvc := services.InitAuthServices(pgDb, otpRedis, jwtSecret, mailServerURL)
 	return &authController{
 		services:      *authSvc,
 		cookieSecure:  cookieSecure,
@@ -78,7 +78,7 @@ func (r *authController) CredentialSignIn(res http.ResponseWriter, req *http.Req
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   15 * 60,
 	})
 	http.SetCookie(res, &http.Cookie{
@@ -87,7 +87,7 @@ func (r *authController) CredentialSignIn(res http.ResponseWriter, req *http.Req
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   7 * 24 * 60 * 60,
 	})
 
@@ -132,7 +132,7 @@ func (r *authController) CredentialSignUp(res http.ResponseWriter, req *http.Req
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   15 * 60,
 	})
 	http.SetCookie(res, &http.Cookie{
@@ -141,7 +141,7 @@ func (r *authController) CredentialSignUp(res http.ResponseWriter, req *http.Req
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   7 * 24 * 60 * 60,
 	})
 
@@ -184,7 +184,7 @@ func (r *authController) CredentialSignOut(res http.ResponseWriter, req *http.Re
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   -1,
 	})
 	http.SetCookie(res, &http.Cookie{
@@ -193,7 +193,7 @@ func (r *authController) CredentialSignOut(res http.ResponseWriter, req *http.Re
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   -1,
 	})
 	utils.WriteJson(res, http.StatusAccepted, utils.Response[string]{
@@ -240,7 +240,7 @@ func (r *authController) CredentialRefresh(res http.ResponseWriter, req *http.Re
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   15 * 60 * 60,
 	})
 
@@ -353,7 +353,7 @@ func (r *authController) OAuthLogin(res http.ResponseWriter, req *http.Request) 
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   15 * 60,
 	})
 	http.SetCookie(res, &http.Cookie{
@@ -362,7 +362,7 @@ func (r *authController) OAuthLogin(res http.ResponseWriter, req *http.Request) 
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   r.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		MaxAge:   7 * 24 * 60 * 60,
 	})
 	_ = gothic.Logout(res, req)

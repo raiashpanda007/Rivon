@@ -2,11 +2,11 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/utils"
@@ -50,7 +50,7 @@ func NewUserRepo(pgDb *pgxpool.Pool) UserRepo {
 
 func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, provider AuthProvider) (*User, *string, utils.ErrorType, error) {
 	var user User
-	var password string
+	var password *string
 	err := r.db.QueryRow(
 		ctx,
 		`SELECT id, type, name, email, password_hash, verified, provider
@@ -69,7 +69,7 @@ func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, pro
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Error("User not found by email", "email", email, "error", err)
 			return nil, nil, utils.ErrNotFound, errors.New("user not found")
 		}
@@ -77,12 +77,12 @@ func (r *userRepoServices) GetUserByEmail(ctx context.Context, email string, pro
 		return nil, nil, utils.ErrInternal, err
 	}
 
-	return &user, &password, utils.NoError, nil
+	return &user, password, utils.NoError, nil
 }
 
 func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, string, utils.ErrorType, error) {
 	var user User
-	var password string
+	var password *string
 	err := r.db.QueryRow(
 		ctx,
 		`SELECT id, type, name, email, password_hash, verified, provider
@@ -100,7 +100,7 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Error("User not found by ID", "id", id, "error", err)
 			return nil, "", utils.ErrNotFound, errors.New("user not found")
 		}
@@ -108,14 +108,26 @@ func (r *userRepoServices) GetUserByID(ctx context.Context, id string) (*User, s
 		return nil, "", utils.ErrInternal, err
 	}
 
-	return &user, password, utils.NoError, nil
+	pass := ""
+	if password != nil {
+		pass = *password
+	}
+
+	return &user, pass, utils.NoError, nil
 }
 
 func (r *userRepoServices) CreateUserCredentials(ctx context.Context, email string, name string, passwordHash string) (*User, utils.ErrorType, error) {
 
-	var user User
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		slog.Error("Failed to start transaction", "error", err)
+		return nil, utils.ErrInternal, err
+	}
+	defer tx.Rollback(ctx)
 
-	query := `
+	userID := uuid.New()
+	var user User
+	userQuery := `
 	INSERT INTO users (
 		id,
 		name,
@@ -133,10 +145,10 @@ func (r *userRepoServices) CreateUserCredentials(ctx context.Context, email stri
 		provider;
 	`
 
-	err := r.db.QueryRow(
+	err = tx.QueryRow(
 		ctx,
-		query,
-		uuid.New(),
+		userQuery,
+		userID,
 		name,
 		email,
 		passwordHash,
@@ -151,13 +163,36 @@ func (r *userRepoServices) CreateUserCredentials(ctx context.Context, email stri
 
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				slog.Error("User already exists", "email", email, "error", err)
-				return nil, utils.ErrConflict, errors.New("User already exsits")
-			}
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			slog.Error("User already exists", "email", email)
+			return nil, utils.ErrConflict, errors.New("user already exists")
 		}
-		slog.Error("Database error creating user", "error", err)
+		slog.Error("Failed to create user", "error", err)
+		return nil, utils.ErrInternal, err
+	}
+
+	walletQuery := `
+	INSERT INTO wallets (
+		id,
+		user_id
+	)
+	VALUES ($1, $2);
+	`
+
+	_, err = tx.Exec(
+		ctx,
+		walletQuery,
+		uuid.New(),
+		userID,
+	)
+	if err != nil {
+		slog.Error("Failed to create wallet", "user_id", userID, "error", err)
+		return nil, utils.ErrInternal, err
+	}
+
+	// 3️⃣ Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		slog.Error("Transaction commit failed", "error", err)
 		return nil, utils.ErrInternal, err
 	}
 
@@ -230,7 +265,17 @@ func (r *userRepoServices) UpdateUserVerification(ctx context.Context, userID st
 }
 
 func (r *userRepoServices) CreateUserOAuth(ctx context.Context, email, name, profilePhoto string, provider AuthProvider) (*User, utils.ErrorType, error) {
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		slog.Error("Failed to start transaction", "error", err)
+		return nil, utils.ErrInternal, err
+	}
+	defer tx.Rollback(ctx)
+
 	var user User
+	var isNew bool
+	userID := uuid.New()
 
 	query := `
 	INSERT INTO users (
@@ -253,13 +298,14 @@ func (r *userRepoServices) CreateUserOAuth(ctx context.Context, email, name, pro
 		email,
 		verified,
 		provider,
-		display_photo;
+		display_photo,
+		(xmax = 0) AS is_new;
 	`
 
-	err := r.db.QueryRow(
+	err = tx.QueryRow(
 		ctx,
 		query,
-		uuid.New(),
+		userID,
 		name,
 		email,
 		provider,
@@ -272,10 +318,32 @@ func (r *userRepoServices) CreateUserOAuth(ctx context.Context, email, name, pro
 		&user.Verified,
 		&user.Provider,
 		&user.Photo,
+		&isNew,
 	)
 
 	if err != nil {
-		slog.Error("Database error in OAuth upsert", "error", err)
+		slog.Error("OAuth upsert failed", "error", err)
+		return nil, utils.ErrInternal, err
+	}
+
+	if isNew {
+		_, err = tx.Exec(
+			ctx,
+			`
+			INSERT INTO wallets (id, user_id)
+			VALUES ($1, $2);
+			`,
+			uuid.New(),
+			user.Id,
+		)
+		if err != nil {
+			slog.Error("Failed to create wallet for OAuth user", "user_id", user.Id, "error", err)
+			return nil, utils.ErrInternal, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.Error("Transaction commit failed", "error", err)
 		return nil, utils.ErrInternal, err
 	}
 

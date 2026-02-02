@@ -10,12 +10,13 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/http/controllers"
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
 func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client) chi.Router {
 	router := chi.NewRouter()
-
+	Controllers := controllers.NewController(PgDb, OtpRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:3000",
@@ -59,8 +60,11 @@ func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client)
 		})
 	})
 
-	AuthRouter := NewAuthRouter(cfg, PgDb, OtpRedis)
+	AuthRouter := NewAuthRouter(cfg, PgDb, Controllers)
+	WalletRouter := NewWalletRouter(PgDb, cfg, Controllers)
+	FootBallMetaRouter := NewFootBallMetaRoutes(cfg, PgDb, Controllers)
 	router.Mount("/api/rivon/auth", AuthRouter)
-
+	router.Mount("/api/rivon/wallet", WalletRouter)
+	router.Mount("/api/rivon/football-meta", FootBallMetaRouter)
 	return router
 }
