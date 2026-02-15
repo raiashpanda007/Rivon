@@ -12,9 +12,10 @@ import { ThemeToggle } from "@workspace/ui/components/ThemeToggle";
 interface HeaderProps {
   scrollDirection?: "up" | "down" | null;
   isScrolled?: boolean;
+  currentApp?: "trade" | "betting";
 }
 
-function Header({ scrollDirection: externalScrollDirection, isScrolled: externalIsScrolled }: HeaderProps) {
+function Header({ scrollDirection: externalScrollDirection, isScrolled: externalIsScrolled, currentApp }: HeaderProps) {
   const internalScrollDirection = useScrollDirection();
   const [internalIsScrolled, setInternalIsScrolled] = useState(false);
 
@@ -47,7 +48,7 @@ function Header({ scrollDirection: externalScrollDirection, isScrolled: external
           <Logo className="h-10 w-auto shrink-0" />
 
           <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
-            <Options />
+            <Options currentApp={currentApp} />
             <SearchBar />
           </div>
 

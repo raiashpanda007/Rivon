@@ -33,7 +33,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Providers>
-          <AppLayout>
+          <AppLayout currentApp="trade">
             {children}
           </AppLayout>
         </Providers>

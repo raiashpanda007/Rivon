@@ -10,9 +10,10 @@ import ApiCaller, { RequestType } from "@workspace/api-caller";
 
 interface AppLayoutProps {
     children: React.ReactNode;
+    currentApp?: "trade" | "betting";
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, currentApp }: AppLayoutProps) {
     const viewportRef = useRef<HTMLDivElement>(null);
     const scrollDirection = useScrollDirection(viewportRef);
     const [isScrolled, setIsScrolled] = useState(false);
@@ -75,7 +76,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     return (
         <div className="h-screen w-full flex flex-col overflow-hidden">
-            <Header scrollDirection={scrollDirection} isScrolled={isScrolled} />
+            <Header scrollDirection={scrollDirection} isScrolled={isScrolled} currentApp={currentApp} />
             <ScrollArea className="flex-1" viewportRef={viewportRef}>
                 <div className="pt-16 min-h-full w-full">
                     {children}
