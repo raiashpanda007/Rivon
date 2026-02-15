@@ -164,3 +164,28 @@ type GetSeasonResponse struct {
 	Seasons      []GetSeason       `json:"season"`
 	LeagueSeason []GetLeagueSeason `json:"leagueSeason"`
 }
+
+type MarketTable struct {
+	Id           uuid.UUID    `json:"id"`
+	TeamID       uuid.UUID    `json:"teamId"`
+	MarketName   string       `json:"marketName"`
+	MarketCode   string       `json:"marketCode"`
+	LastPrice    int64        `json:"lastPrice"`
+	MarketStatus string       `json:"status"`
+	Volume24H    int64        `json:"volume24h"`
+	TotalVolume  int64        `json:"totalVolume"`
+	OpenPrice24H int64        `json:"openPrice"`
+	TeamDetails  *TeamDetails `json:"teamDetails,omitempty"`
+	CreatedAt    time.Time    `json:"createdAt"`
+	UpdatedAt    time.Time    `json:"updatedAt"`
+}
+
+type TeamDetails struct {
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	ShortName     string    `json:"shortName"`
+	Code          string    `json:"code"`
+	TLA           string    `json:"tla"`
+	Emblem        string    `json:"emblem"`
+	FootballOrgId int       `json:"footballOrgId"`
+}

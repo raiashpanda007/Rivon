@@ -9,16 +9,19 @@ type Controllers struct {
 	AuthController
 	WalletController
 	FootballMetaController
+	MarketController
 }
 
 func NewController(pgDb *pgxpool.Pool, otpRedis *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool, clientBaseURL string) Controllers {
 	auth := InitAuthController(pgDb, otpRedis, jwtSecret, mailServerURL, cookieSecure, clientBaseURL)
 	walletController := InitWalletController(pgDb)
 	footballMetaController := InitFootballMetaController(pgDb)
+	marketController := InitMarketControllers(pgDb)
 	return Controllers{
 		AuthController:         auth,
 		WalletController:       walletController,
 		FootballMetaController: footballMetaController,
+		MarketController:       marketController,
 	}
 
 }

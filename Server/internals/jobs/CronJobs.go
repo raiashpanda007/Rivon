@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/services/markets"
 	"github.com/raiashpanda007/rivon/internals/types"
 	"github.com/raiashpanda007/rivon/internals/utils"
 	"golang.org/x/sync/errgroup"
@@ -17,8 +18,9 @@ type CronJobs interface {
 }
 
 type cronJobs struct {
-	repo FootBallMetaRepo
-	cfg  *config.Config
+	repo      FootBallMetaRepo
+	cfg       *config.Config
+	marketSvc markets.MarketServices
 }
 
 func timeConvertor(rawDate string) (time.Time, error) {
@@ -27,10 +29,11 @@ func timeConvertor(rawDate string) (time.Time, error) {
 
 func NewCronJobs(db *pgxpool.Pool, cfg *config.Config) CronJobs {
 	repo := NewFootBallMetaRepo(db)
-
+	marketServices := markets.NewMarketServices(db)
 	return &cronJobs{
-		repo: repo,
-		cfg:  cfg,
+		repo:      repo,
+		cfg:       cfg,
+		marketSvc: marketServices,
 	}
 }
 
@@ -106,6 +109,12 @@ func (r *cronJobs) UpdateLeagueStats(ctx context.Context) error {
 						league.Id,
 						seasonId,
 					)
+					if err != nil {
+						return err
+					}
+
+					_, _, err = r.marketSvc.CreateMarket(ctx, teamID.String(), tableRow.Team.Name, tableRow.Team.TLA, 0, 0, 0, 0)
+
 					if err != nil {
 						return err
 					}
