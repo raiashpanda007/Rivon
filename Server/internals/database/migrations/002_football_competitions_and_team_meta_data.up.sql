@@ -40,18 +40,17 @@ CREATE TABLE seasons(
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TABLE league_seasons(league_id UUID NOT NULL REFERENCES leagues(id)
-ON DELETE CASCADE,
-season_id UUID NOT NULL REFERENCES seasons(id)
-ON DELETE CASCADE PRIMARY KEY(
-  league_id,
-  season_id
-));
+CREATE TABLE league_seasons(
+  league_id UUID NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+  season_id UUID NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+  PRIMARY KEY(league_id, season_id)
+);
 CREATE TABLE teams_leagues(
   team_id UUID NOT NULL REFERENCES teams(id)
 ON DELETE CASCADE,
   league_id UUID NOT NULL,
-  season_id UUID NOT NULL PRIMARY KEY(
+  season_id UUID NOT NULL,
+  PRIMARY KEY(
     team_id,
     league_id,
     season_id
@@ -77,9 +76,11 @@ CREATE TABLE standings(
   points INT NOT NULL DEFAULT 0,
   goals_for INT NOT NULL DEFAULT 0,
   goals_against INT NOT NULL DEFAULT 0,
-  goal_difference INT NOT NULL DEFAULT 0 POSITION INT NOT NULL,
+  goal_difference INT NOT NULL DEFAULT 0,
+  POSITION INT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW() UNIQUE(
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(
     team_id,
     league_id,
     season_id
@@ -92,8 +93,8 @@ CREATE TABLE standings(
     team_id,
     league_id,
     season_id
-  )
-ON DELETE CASCADE CHECK(played_games >= 0),
+  ) ON DELETE CASCADE,
+  CHECK(played_games >= 0),
   CHECK(won >= 0),
   CHECK(draw >= 0),
   CHECK(lost >= 0),

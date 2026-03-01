@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,16 +17,19 @@ type MarketServices interface {
 	GetAllMarkets(ctx context.Context, teamDetails bool) ([]types.MarketTable, utils.ErrorType, error)
 	GetMarket(ctx context.Context, marketID string, teamDetails bool) (types.MarketTable, utils.ErrorType, error)
 	CreateMarket(ctx context.Context, teamID, marketName, marketCode string, lastPrice, volume24H, totalVolume, openPrice24H int64) (types.MarketTable, utils.ErrorType, error)
+	PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) error
 }
 
 type marketSvc struct {
-	repo MarketRepo
+	repo       MarketRepo
+	orderRedis *redis.Client
 }
 
-func NewMarketServices(db *pgxpool.Pool) MarketServices {
+func NewMarketServices(db *pgxpool.Pool, orderRedis *redis.Client) MarketServices {
 	repo := NewMarketRepoServices(db)
 	return &marketSvc{
-		repo: repo,
+		repo:       repo,
+		orderRedis: orderRedis,
 	}
 }
 
@@ -79,4 +83,29 @@ func (r *marketSvc) CreateMarket(ctx context.Context, teamID, marketName, market
 
 	return market, utils.NoError, nil
 
+}
+
+func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) error {
+
+	orderId := uuid.New()
+
+	_, err := r.orderRedis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "ORDERS_" + marketId.String(),
+		Values: map[string]interface{}{
+			"orderId":   orderId.String(),
+			"userId":    userId.String(),
+			"marketId":  marketId.String(),
+			"price":     price,
+			"quantity":  int(quantity),
+			"orderType": string(orderType),
+		},
+	}).Result()
+
+	if err != nil {
+		slog.Error("Unable to write on redis stream.")
+		return err
+	}
+	slog.Info("Order placed successfully in redis stream for market ", "marketId", marketId, "userId", userId, "price", price, "quantity", quantity, "orderType", orderType)
+
+	return nil
 }

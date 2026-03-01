@@ -16,7 +16,7 @@ import (
 func main() {
 	slog.Info("Starting Cron Jobs")
 	cfg := config.MustLoad()
-	db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL)
+	db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL)
 	if err != nil {
 		panic("Unable to connect DB" + err.Error())
 	}
@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// Run cron jobs immediately when the application starts
-	if err := jobs.RunCronJobs(ctx, db.PgDB, cfg); err != nil {
+	if err := jobs.RunCronJobs(ctx, db.PgDB, db.OrderRedis, cfg); err != nil {
 		slog.Error("Failed to run initial cron jobs", "error", err)
 	}
 
@@ -40,7 +40,7 @@ func main() {
 	_, err = c.AddFunc("@midnight", func() {
 		slog.Info("Running scheduled cron jobs")
 		// Use a fresh context for the scheduled job, or context.Background()
-		if err := jobs.RunCronJobs(context.Background(), db.PgDB, cfg); err != nil {
+		if err := jobs.RunCronJobs(context.Background(), db.PgDB, db.OrderRedis, cfg); err != nil {
 			slog.Error("Failed to run scheduled cron jobs", "error", err)
 		}
 	})

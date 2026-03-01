@@ -4,6 +4,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
+	"github.com/raiashpanda007/rivon/internals/services/markets"
 	"github.com/raiashpanda007/rivon/internals/services/wallet"
 )
 
@@ -21,4 +22,11 @@ func InitWalletServices(pgDb *pgxpool.Pool) *wallet.WalletServices {
 	walletRepo := wallet.NewWalletRepo(pgDb)
 	walletServices := wallet.NewWalletServices(walletRepo)
 	return &walletServices
+}
+
+func InitMarketServices(pgDb *pgxpool.Pool, orderRedis *redis.Client) markets.MarketServices {
+
+	marketSvc := markets.NewMarketServices(pgDb, orderRedis)
+	return marketSvc
+
 }

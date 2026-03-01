@@ -189,3 +189,25 @@ type TeamDetails struct {
 	Emblem        string    `json:"emblem"`
 	FootballOrgId int       `json:"footballOrgId"`
 }
+
+type OrderTypes string
+
+const (
+	CREATE_ORDER OrderTypes = "create_order"
+	CANCEL_ORDER OrderTypes = "cancel_order"
+)
+
+type RedisStreamMessage struct {
+	UserId   uuid.UUID `json:"userId"`
+	MarketId uuid.UUID `json:"marketId"`
+	Price    int64     `json:"price"`
+	Quantity int       `json:"quantity"`
+	OrderId  uuid.UUID `json:"orderId"`
+}
+
+type MarketOrder struct {
+	MarketId  uuid.UUID  `json:"marketId"`
+	Price     int64      `json:"price"`
+	Quantity  int64      `json:"quantity"`
+	OrderType OrderTypes `json:"orderType"`
+}

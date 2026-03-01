@@ -10,8 +10,9 @@ import (
 )
 
 type DataBase struct {
-	PgURL       string
-	OTPRedisURL string
+	PgURL         string
+	OTPRedisURL   string
+	OrderRedisURL string
 }
 type AuthConfig struct {
 	AuthSecret         string
@@ -121,8 +122,9 @@ func MustLoad() *Config {
 		CookieSecure:  stringTobool(mustEnv("COOKIE_SECURE")),
 	}
 	var dbCfg = DataBase{
-		PgURL:       mustEnv("DATABASE_POSTGRES_URL"),
-		OTPRedisURL: mustEnv("OTP_REDIS_URL"),
+		PgURL:         mustEnv("DATABASE_POSTGRES_URL"),
+		OTPRedisURL:   mustEnv("OTP_REDIS_URL"),
+		OrderRedisURL: mustEnv("ORDER_REDIS_URL"),
 	}
 
 	cfg.Auth = authCfg
@@ -132,6 +134,5 @@ func MustLoad() *Config {
 	cfg.IsProduction = stringTobool(mustEnv("PRODUCTION"))
 	cfg.ClientBaseURL = mustEnv("CLIENT_BASE_URL")
 	cfg.FootbalOrgApiKey = getAllFootBallOrgAPIKeys()
-	fmt.Println(cfg)
 	return &cfg
 }
