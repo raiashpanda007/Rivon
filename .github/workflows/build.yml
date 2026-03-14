@@ -26,12 +26,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: Server/go.mod
-          cache-dependency-path: Server/go.sum
+          cache-dependency-path: |
+            Server/go.sum
+            Engine/go.sum
       - name: Install Client Dependencies
         working-directory: ./Client
         run: bun install
       - name: Install Server Dependencies
         working-directory: ./Server
+        run: go mod tidy
+      - name: Install Engine Dependencies
+        working-directory: ./Engine
         run: go mod tidy
       - name: Install MailServer Dependencies
         working-directory: ./MailServer
@@ -42,6 +47,9 @@ jobs:
       - name: Building Server Side
         working-directory: ./Server
         run: go run cli/main.go build
+      - name: Building Engine Side
+        working-directory: ./Engine
+        run: go build -o engine cmd/main.go
       - name: Building MailServer Side
         working-directory: ./MailServer
         run: bun run build
