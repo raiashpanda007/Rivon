@@ -56,21 +56,18 @@ jobs:
       - name: Install Engine Dependencies
         working-directory: ./Engine
         run: go mod tidy
+      - name: Install CLI Dependencies
+        working-directory: ./cli
+        run: go mod tidy
       - name: Install MailServer Dependencies
         working-directory: ./MailServer
         run: bun install
       - name: Running Migrations Test
-        working-directory: ./Server
-        run: go run cli/main.go migrate up
+        working-directory: ./cli
+        run: go run main.go migrate up
       - name: Building Client Side
         working-directory: ./Client
         run: bun run build
-      - name: Building Server Side
-        working-directory: ./Server
-        run: go run cli/main.go build
-      - name: Building Engine Side
-        working-directory: ./Engine
-        run: go build -o engine cmd/main.go
-      - name: Building MailServer Side
-        working-directory: ./MailServer
-        run: bun run build
+      - name: Building Backend Services
+        working-directory: ./cli
+        run: go run main.go build
