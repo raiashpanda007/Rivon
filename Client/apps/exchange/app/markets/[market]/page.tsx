@@ -82,12 +82,12 @@ function Sparkline({ data, isUp }: { data: number[]; isUp: boolean }) {
         return [x, y] as [number, number]
     })
     const linePath = "M " + pts.map(([x, y]) => `${x},${y}`).join(" L ")
-    const fillPath = `${linePath} L ${pts[pts.length - 1][0]},${H} L ${pts[0][0]},${H} Z`
+    const fillPath = `${linePath} L ${pts[pts.length - 1]![0]},${H} L ${pts[0]![0]},${H} Z`
     const color = isUp ? "#22c55e" : "#ef4444"
     const gid = `sg-${isUp ? "up" : "dn"}`
-    const lastPt = pts[pts.length - 1]
-    const firstPrice = data[0]
-    const lastPrice = data[data.length - 1]
+    const lastPt = pts[pts.length - 1]!
+    const firstPrice = data[0]!
+    const lastPrice = data[data.length - 1]!
 
     return (
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="none">
@@ -175,7 +175,7 @@ export default function Page({ params }: { params: Promise<{ market: string }> }
             setPriceUp(newBook.mid >= orderBook.mid)
             setOrderBook(newBook)
             setSparkline(prev => {
-                const next = [...prev.slice(1), parseFloat((prev[prev.length - 1] + (Math.random() - 0.5) * 0.04).toFixed(3))]
+                const next = [...prev.slice(1), parseFloat((prev[prev.length - 1]! + (Math.random() - 0.5) * 0.04).toFixed(3))]
                 return next
             })
             setTrades(prev => {
