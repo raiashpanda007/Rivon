@@ -200,13 +200,19 @@ function LeagueSelection() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full text-center space-y-4"
+          className="w-full flex flex-col items-center text-center space-y-6 mb-4"
         >
-          <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 drop-shadow-sm">
-            Select Your Arena
+          <div className="px-2 py-1 rounded-sm bg-orange-500/10 border border-orange-500/20 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+            <span className="font-mono text-[10px] font-bold text-orange-500 tracking-widest">LEAGUE_DATA</span>
+          </div>
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter text-foreground leading-none">
+            League <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">Standings</span>
           </h1>
-          <p className="text-muted-foreground font-medium">Choose a league to explore details</p>
-          <div className="flex justify-center mt-6">
+          <p className="font-mono text-xs text-muted-foreground max-w-xl">
+            Access global football data directly from the Meta API. Select an arena to fetch the latest tables and form.
+          </p>
+          <div className="flex justify-center mt-6 w-full">
             <div className="w-full max-w-sm relative">
               <Select onValueChange={(e) => setSelectedCompetition(JSON.parse(e))}>
                 <SelectTrigger className="w-full bg-background/80 backdrop-blur-sm border-input h-12 text-lg relative shadow-sm hover:bg-accent/50 transition-colors">

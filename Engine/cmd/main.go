@@ -22,8 +22,17 @@ func main() {
 	}
 
 	orderRedis, err := redis.Init_Order_Redis(cfg.ORDER_REDIS_URL)
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO ORDER REDIS :: ", slog.Any("ERROR :: ", err))
+	}
 
-	engine.InitEngine(ctx, orderRedis, db)
+	tradeRedis, err := redis.Init_Trade_Redis(cfg.TRADE_REDIS_URL)
+
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO TRADE REDIS :: ", slog.Any("ERROR :: ", err))
+	}
+
+	engine.InitEngine(ctx, orderRedis, tradeRedis, db)
 	slog.Info("Trade engine running... Press Ctrl+C to stop")
 
 	select {}

@@ -3,15 +3,14 @@ package engine
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
+	database "github.com/raiashpanda007/rivon/engine/internals/Database"
+	"github.com/raiashpanda007/rivon/engine/internals/markets"
 	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/go-redis/redis/v8"
-	database "github.com/raiashpanda007/rivon/engine/internals/Database"
-	"github.com/raiashpanda007/rivon/engine/internals/markets"
 )
 
 func parseOrderMessage(values map[string]interface{}) (markets.OrderMessages, error) {
@@ -39,8 +38,6 @@ func parseOrderMessage(values map[string]interface{}) (markets.OrderMessages, er
 	}, nil
 }
 
-// redisStreamProducers creates all streams + consumer groups
-// Waits for all to complete before returning
 func redisStreamProducers(ctx context.Context, redisClient *redis.Client, markets []database.Market) error {
 	group := "engine"
 	var wg sync.WaitGroup
@@ -78,9 +75,6 @@ func redisStreamProducers(ctx context.Context, redisClient *redis.Client, market
 	return nil
 }
 
-// ensureConsumerGroups verifies that the consumer group exists on all streams,
-// creating it if missing. This is a safety net for streams that may have been
-// created without the group (e.g., by the backend publishing to a stream directly).
 func ensureConsumerGroups(ctx context.Context, redisClient *redis.Client, marketBatch []database.Market) {
 	group := "engine"
 	for _, market := range marketBatch {
@@ -94,11 +88,8 @@ func ensureConsumerGroups(ctx context.Context, redisClient *redis.Client, market
 	}
 }
 
-// batchSize controls how many streams each consumer goroutine handles.
-// go-redis v8 has issues with XREADGROUP on very large stream counts.
 const batchSize = 20
 
-// redisStreamBatchConsumer reads from a batch of streams in a loop.
 func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, marketMap map[string]chan markets.OrderMessages, batch []database.Market, batchId int) {
 	// Build streams slice: [stream1, stream2, ..., >, >, ...]
 	streams := make([]string, 0, len(batch)*2)
@@ -157,10 +148,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 	}
 }
 
-// startBatchedConsumers splits all markets into batches and starts
-// a separate consumer goroutine for each batch.
 func startBatchedConsumers(ctx context.Context, redisClient *redis.Client, marketMap map[string]chan markets.OrderMessages, allMarkets []database.Market) {
-	// Ensure all consumer groups exist first
 	ensureConsumerGroups(ctx, redisClient, allMarkets)
 	slog.Info("Consumer groups verified", "total_streams", len(allMarkets))
 
@@ -170,6 +158,7 @@ func startBatchedConsumers(ctx context.Context, redisClient *redis.Client, marke
 		if end > len(allMarkets) {
 			end = len(allMarkets)
 		}
+
 		batch := allMarkets[i:end]
 		go redisStreamBatchConsumer(ctx, redisClient, marketMap, batch, batchCount)
 		batchCount++
@@ -178,7 +167,7 @@ func startBatchedConsumers(ctx context.Context, redisClient *redis.Client, marke
 	slog.Info("All batch consumers started", "total_batches", batchCount, "total_streams", len(allMarkets))
 }
 
-func InitEngine(ctx context.Context, OrderRedis *redis.Client, Db *database.Database) error {
+func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *database.Database) error {
 	allMarkets, err := Db.GetAllMarkets()
 	var marketChannelMap = make(map[string]chan markets.OrderMessages)
 
@@ -189,20 +178,16 @@ func InitEngine(ctx context.Context, OrderRedis *redis.Client, Db *database.Data
 
 	slog.Info("Creating market channels", "count", len(allMarkets))
 
-	// Step 1: Create channels and start market processors
 	for _, market := range allMarkets {
 		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(marketChannelMap[market.Id])
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis)
 	}
 
-	// Step 2: Wait for all streams to be created (SYNC)
 	slog.Info("Initializing Redis streams...", "count", len(allMarkets))
 	if err := redisStreamProducers(ctx, OrderRedis, allMarkets); err != nil {
 		slog.Error("Failed to initialize streams", "error", err)
 		return err
 	}
-
-	// Step 3: All streams ready — now start batched consumers (ASYNC)
 	slog.Info("All streams ready, starting consumers...")
 	startBatchedConsumers(ctx, OrderRedis, marketChannelMap, allMarkets)
 

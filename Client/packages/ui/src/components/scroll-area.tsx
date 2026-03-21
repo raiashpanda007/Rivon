@@ -20,7 +20,7 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Viewport
       ref={viewportRef}
       data-slot="scroll-area-viewport"
-      className="h-full w-full rounded-[inherit] outline-none"
+      className="h-full w-full max-w-full rounded-[inherit] outline-none overflow-x-hidden"
     >
       {children}
     </ScrollAreaPrimitive.Viewport>

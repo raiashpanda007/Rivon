@@ -12,6 +12,7 @@ import (
 type Config struct {
 	ENVIRONMENT     string
 	ORDER_REDIS_URL string
+	TRADE_REDIS_URL string
 	PG_URL          string
 }
 
@@ -36,6 +37,7 @@ func MustLoad() *Config {
 	cfg.ENVIRONMENT = mustEnv("ENVIRONMENT")
 
 	cfg.ORDER_REDIS_URL = mustEnv("ORDER_REDIS_URL")
+	cfg.TRADE_REDIS_URL = mustEnv("TRADE_REDIS_URL")
 
 	cfg.PG_URL = mustEnv("PG_URL")
 
