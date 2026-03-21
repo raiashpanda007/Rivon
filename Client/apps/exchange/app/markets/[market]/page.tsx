@@ -62,7 +62,7 @@ function generateTrades(): TradeEntry[] {
 function generateSparkline(base: number = 4.23, points: number = 80): number[] {
     const data: number[] = [base]
     for (let i = 1; i < points; i++) {
-        data.push(parseFloat((data[i - 1] + (Math.random() - 0.5) * 0.04).toFixed(3)))
+        data.push(parseFloat((data[i - 1]! + (Math.random() - 0.5) * 0.04).toFixed(3)))
     }
     return data
 }
