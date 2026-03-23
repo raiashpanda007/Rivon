@@ -25,3 +25,9 @@ services:
     restart: unless-stopped
     ports:
       - "6381:6379"
+
+  api-server-pubsub-redis:
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6382:6379"

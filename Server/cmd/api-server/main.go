@@ -13,6 +13,8 @@ import (
 	"github.com/raiashpanda007/rivon/internals/config"
 	"github.com/raiashpanda007/rivon/internals/database"
 	"github.com/raiashpanda007/rivon/internals/http/routes"
+	pubsub "github.com/raiashpanda007/rivon/internals/pub-sub"
+
 	"github.com/raiashpanda007/rivon/internals/services/auth"
 )
 
@@ -22,12 +24,13 @@ func main() {
 
 	auth.NewOAuth(cfg.Auth.GoAuthSecret, cfg.Server.CookieSecure, cfg.Auth.GoogleClientID, cfg.Auth.GoogleClientSecret, cfg.Auth.GithubClientID, cfg.Auth.GithubClientSecret, "http://"+cfg.Server.ApiServerAddr+"/api/rivon")
 
-	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL)
+	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL, cfg.Db.ApiEnginePubSubRedisURL)
 	if err != nil {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}
 
-	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis)
+	PubSubConn := pubsub.InitPubSub(Db.ApiEnginerPubSubRedis)
+	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,

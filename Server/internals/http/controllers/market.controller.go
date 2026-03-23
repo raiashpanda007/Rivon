@@ -9,6 +9,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pubsub "github.com/raiashpanda007/rivon/internals/pub-sub"
 	"github.com/raiashpanda007/rivon/internals/services"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
 	"github.com/raiashpanda007/rivon/internals/services/markets"
@@ -22,13 +23,15 @@ type MarketController interface {
 }
 
 type marketControllerUtils struct {
-	svc markets.MarketServices
+	svc    markets.MarketServices
+	pubsub pubsub.Pubsub
 }
 
-func InitMarketControllers(pgDb *pgxpool.Pool, orderRedis *redis.Client) MarketController {
+func InitMarketControllers(pgDb *pgxpool.Pool, orderRedis *redis.Client, pubsubConn pubsub.Pubsub) MarketController {
 	svc := services.InitMarketServices(pgDb, orderRedis)
 	return &marketControllerUtils{
-		svc: svc,
+		svc:    svc,
+		pubsub: pubsubConn,
 	}
 }
 
@@ -116,6 +119,7 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 		return
 	}
 
+	r.pubsub.Subscribe(req.Context(), "ORDERS")
 	utils.WriteJson(res, http.StatusOK, utils.Response[string]{
 		Status:  200,
 		Message: "Order placed successfully",

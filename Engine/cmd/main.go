@@ -7,6 +7,7 @@ import (
 	config "github.com/raiashpanda007/rivon/engine/internals/Config"
 	database "github.com/raiashpanda007/rivon/engine/internals/Database"
 	engine "github.com/raiashpanda007/rivon/engine/internals/Engine"
+	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
 	redis "github.com/raiashpanda007/rivon/engine/internals/Redis"
 )
 
@@ -31,6 +32,13 @@ func main() {
 	if err != nil {
 		slog.Error("ERROR :: IN CONNECTION TO TRADE REDIS :: ", slog.Any("ERROR :: ", err))
 	}
+	apiPubSubRedisClient, err := redis.Init_Api_PubSub_Redis(cfg.API_PUB_SUB_REDIS_URL)
+
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO TRADE REDIS :: ", slog.Any("ERROR :: ", err))
+	}
+
+	pubsub.InitPubSub(ctx, apiPubSubRedisClient)
 
 	engine.InitEngine(ctx, orderRedis, tradeRedis, db)
 	slog.Info("Trade engine running... Press Ctrl+C to stop")

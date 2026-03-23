@@ -2,17 +2,24 @@ package tradestream
 
 import (
 	"context"
-	"log/slog"
-
 	"github.com/go-redis/redis/v8"
 	orderbooks "github.com/raiashpanda007/rivon/engine/internals/Orderbooks"
+	"log/slog"
 )
 
-func TradeRedisStreamPublisher(ctx context.Context, orderId, marketId string, fills []orderbooks.Fills, executedQty int, price int, tradeRedisClient *redis.Client) {
+type TradeStreamTypes string
+
+const (
+	ORDER_UPDATED   TradeStreamTypes = "order_updated"
+	CANCELLED_ORDER TradeStreamTypes = "order_cancelled"
+)
+
+func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, orderId, marketId string, fills []orderbooks.Fills, executedQty int, price int, tradeRedisClient *redis.Client) {
 
 	_, err := tradeRedisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: "TRADES",
 		Values: map[string]any{
+			"tradeType":   tradeType,
 			"marketId":    marketId,
 			"fills":       fills,
 			"executedQty": executedQty,

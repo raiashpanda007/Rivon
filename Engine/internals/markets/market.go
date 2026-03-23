@@ -2,12 +2,11 @@ package markets
 
 import (
 	"context"
-	"log/slog"
-
 	"github.com/go-redis/redis/v8"
 	orderbooks "github.com/raiashpanda007/rivon/engine/internals/Orderbooks"
 	heap "github.com/raiashpanda007/rivon/engine/internals/utils"
 	tradestream "github.com/raiashpanda007/rivon/engine/internals/utils/TradeStream"
+	"log/slog"
 )
 
 type OrderMessages struct {
@@ -20,7 +19,6 @@ type OrderMessages struct {
 }
 
 func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client) {
-
 	var lastTradeId = ""
 	var bids map[int][]orderbooks.Order
 	var asks map[int][]orderbooks.Order
@@ -46,7 +44,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			slog.Error("Error in Adding new order :: ", "err :: ", err)
 		}
 
-		tradestream.TradeRedisStreamPublisher(ctx, order.OrderId, order.MarketId, Fills, executedQty, order.Price, tradeRedis)
+		tradestream.TradeRedisStreamPublisher(ctx, tradestream.ORDER_UPDATED, order.OrderId, order.MarketId, Fills, executedQty, order.Price, tradeRedis)
 
 		bids, asks := OrderBook.GetDepth()
 		snap := OrderBook.GetSnapshot()
@@ -56,7 +54,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			"currentPrice", snap.CurrentPrice,
 			"lastTradeId", snap.LastTradeId,
 		)
-
 	}
 
 }

@@ -10,10 +10,12 @@ import (
 )
 
 type DataBase struct {
-	PgURL         string
-	OTPRedisURL   string
-	OrderRedisURL string
+	PgURL                   string
+	OTPRedisURL             string
+	OrderRedisURL           string
+	ApiEnginePubSubRedisURL string
 }
+
 type AuthConfig struct {
 	AuthSecret         string
 	GoogleClientID     string
@@ -122,9 +124,10 @@ func MustLoad() *Config {
 		CookieSecure:  stringTobool(mustEnv("COOKIE_SECURE")),
 	}
 	var dbCfg = DataBase{
-		PgURL:         mustEnv("DATABASE_POSTGRES_URL"),
-		OTPRedisURL:   mustEnv("OTP_REDIS_URL"),
-		OrderRedisURL: mustEnv("ORDER_REDIS_URL"),
+		PgURL:                   mustEnv("DATABASE_POSTGRES_URL"),
+		OTPRedisURL:             mustEnv("OTP_REDIS_URL"),
+		OrderRedisURL:           mustEnv("ORDER_REDIS_URL"),
+		ApiEnginePubSubRedisURL: mustEnv("API_ENGINE_PUB_SUB_REDIS_URL"),
 	}
 
 	cfg.Auth = authCfg

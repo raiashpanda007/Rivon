@@ -8,12 +8,13 @@ import (
 )
 
 type DataBase struct {
-	PgDB       *pgxpool.Pool
-	OtpRedis   *redis.Client
-	OrderRedis *redis.Client
+	PgDB                  *pgxpool.Pool
+	OtpRedis              *redis.Client
+	OrderRedis            *redis.Client
+	ApiEnginerPubSubRedis *redis.Client
 }
 
-func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string) (*DataBase, error) {
+func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string, apiEnginePubSubRedisURL string) (*DataBase, error) {
 	ctx := context.Background()
 	db, err := pgxpool.New(ctx, pgUrl)
 	if err != nil {
@@ -46,10 +47,21 @@ func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string) (*DataBase,
 		return nil, err
 	}
 	slog.Info("CONNECTED TO ORDER REDIS DB :: ")
+
+	ApiEnginePubSubRedis := redis.NewClient(&redis.Options{
+		Addr: apiEnginePubSubRedisURL,
+	})
+	_, err = ApiEnginePubSubRedis.Ping(ctx).Result()
+	if err != nil {
+		slog.Error("REDIS Ping failed ", slog.Any("ERROR :: ", err))
+		return nil, err
+	}
+
 	return &DataBase{
-		PgDB:       db,
-		OtpRedis:   OtpRedis,
-		OrderRedis: OrderRedis,
+		PgDB:                  db,
+		OtpRedis:              OtpRedis,
+		OrderRedis:            OrderRedis,
+		ApiEnginerPubSubRedis: ApiEnginePubSubRedis,
 	}, nil
 
 }

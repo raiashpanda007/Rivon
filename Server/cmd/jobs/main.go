@@ -16,7 +16,7 @@ import (
 func main() {
 	slog.Info("Starting Cron Jobs")
 	cfg := config.MustLoad()
-	db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL)
+	db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL, cfg.Db.ApiEnginePubSubRedisURL)
 	if err != nil {
 		panic("Unable to connect DB" + err.Error())
 	}
