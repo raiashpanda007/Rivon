@@ -23,18 +23,9 @@
 
 ## Preview
 
-> *Screenshots coming soon — drop them in `docs/screenshots/` and reference here.*
-
-<!-- Replace with actual screenshots once the UI is ready -->
-<!--
 <div align="center">
-  <img src="docs/screenshots/home.png" alt="Rivon Home Page" width="100%" />
-  <br /><br />
-  <img src="docs/screenshots/exchange.png" alt="Exchange Terminal" width="48%" />
-  &nbsp;
-  <img src="docs/screenshots/bet.png" alt="Bet Interface" width="48%" />
+  <img src="docs/screenshots/Rivon.png" alt="Rivon Platform" width="100%" />
 </div>
--->
 
 ---
 
