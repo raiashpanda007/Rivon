@@ -2,11 +2,13 @@ package markets
 
 import (
 	"context"
+	"log/slog"
+
 	"github.com/go-redis/redis/v8"
 	orderbooks "github.com/raiashpanda007/rivon/engine/internals/Orderbooks"
+	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
 	heap "github.com/raiashpanda007/rivon/engine/internals/utils"
 	tradestream "github.com/raiashpanda007/rivon/engine/internals/utils/TradeStream"
-	"log/slog"
 )
 
 type OrderMessages struct {
@@ -18,7 +20,7 @@ type OrderMessages struct {
 	OrderType string `json:"orderType"`
 }
 
-func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client) {
+func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client, pubsubSvc pubsub.PubSubService) {
 	var lastTradeId = ""
 	var bids map[int][]orderbooks.Order
 	var asks map[int][]orderbooks.Order
@@ -45,6 +47,22 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 		}
 
 		tradestream.TradeRedisStreamPublisher(ctx, tradestream.ORDER_UPDATED, order.OrderId, order.MarketId, Fills, executedQty, order.Price, tradeRedis)
+
+		pubsubOrderMessage := pubsub.PubSubOrderMessage{
+			OrderId:          order.OrderId,
+			Fills:            Fills,
+			ExecutedQuantity: executedQty,
+			MessageType:      pubsub.ORDER_UPDATE,
+		}
+
+		err = pubsubSvc.Api().Publish(pubsubOrderMessage)
+
+		if err != nil {
+			slog.Error("Unable to publish to api-server", err)
+			panic("Unable publish to api-server :: " + err.Error())
+		}
+
+		// We have to cancel mechanism here too.
 
 		bids, asks := OrderBook.GetDepth()
 		snap := OrderBook.GetSnapshot()

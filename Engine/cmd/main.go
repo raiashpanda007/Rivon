@@ -38,9 +38,9 @@ func main() {
 		slog.Error("ERROR :: IN CONNECTION TO TRADE REDIS :: ", slog.Any("ERROR :: ", err))
 	}
 
-	pubsub.InitPubSub(ctx, apiPubSubRedisClient)
+	pubsubSvc := pubsub.InitPubSub(ctx, apiPubSubRedisClient)
 
-	engine.InitEngine(ctx, orderRedis, tradeRedis, db)
+	engine.InitEngine(ctx, orderRedis, tradeRedis, db, pubsubSvc)
 	slog.Info("Trade engine running... Press Ctrl+C to stop")
 
 	select {}

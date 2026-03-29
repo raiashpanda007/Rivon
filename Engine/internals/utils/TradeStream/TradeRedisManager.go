@@ -2,6 +2,7 @@ package tradestream
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	orderbooks "github.com/raiashpanda007/rivon/engine/internals/Orderbooks"
 	"log/slog"
@@ -16,12 +17,18 @@ const (
 
 func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, orderId, marketId string, fills []orderbooks.Fills, executedQty int, price int, tradeRedisClient *redis.Client) {
 
-	_, err := tradeRedisClient.XAdd(ctx, &redis.XAddArgs{
+	fillsJSON, err := json.Marshal(fills)
+	if err != nil {
+		slog.Error("Unable to marshal fills", "error", err)
+		return
+	}
+
+	_, err = tradeRedisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: "TRADES",
 		Values: map[string]any{
-			"tradeType":   tradeType,
+			"tradeType":   string(tradeType),
 			"marketId":    marketId,
-			"fills":       fills,
+			"fills":       string(fillsJSON),
 			"executedQty": executedQty,
 			"price":       price,
 			"orderId":     orderId,

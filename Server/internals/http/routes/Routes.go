@@ -12,12 +12,13 @@ import (
 	"github.com/raiashpanda007/rivon/internals/config"
 	"github.com/raiashpanda007/rivon/internals/http/controllers"
 	pubsub "github.com/raiashpanda007/rivon/internals/pub-sub"
+	"github.com/raiashpanda007/rivon/internals/registry"
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
-func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub) chi.Router {
+func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub, reg *registry.Registry) chi.Router {
 	router := chi.NewRouter()
-	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn)
+	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn, reg)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:3000",

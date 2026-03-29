@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pubsub "github.com/raiashpanda007/rivon/internals/pub-sub"
+	"github.com/raiashpanda007/rivon/internals/registry"
 	"github.com/raiashpanda007/rivon/internals/services"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
 	"github.com/raiashpanda007/rivon/internals/services/markets"
@@ -27,8 +28,8 @@ type marketControllerUtils struct {
 	pubsub pubsub.Pubsub
 }
 
-func InitMarketControllers(pgDb *pgxpool.Pool, orderRedis *redis.Client, pubsubConn pubsub.Pubsub) MarketController {
-	svc := services.InitMarketServices(pgDb, orderRedis)
+func InitMarketControllers(pgDb *pgxpool.Pool, orderRedis *redis.Client, pubsubConn pubsub.Pubsub, reg *registry.Registry) MarketController {
+	svc := services.InitMarketServices(pgDb, orderRedis, reg)
 	return &marketControllerUtils{
 		svc:    svc,
 		pubsub: pubsubConn,
@@ -111,20 +112,39 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 		return
 	}
 
-	err = r.svc.PlaceOrder(req.Context(), userCred.Id, order.MarketId, order.Price, order.Quantity, order.OrderType)
+	fill, err := r.svc.PlaceOrder(req.Context(), userCred.Id, order.MarketId, order.Price, order.Quantity, order.OrderType)
 
 	if err != nil {
 		slog.Error("Error placing order", "error", err)
-		utils.WriteJson(res, http.StatusInternalServerError, utils.GenerateError(utils.ErrInternal, errors.New("Failed to place order")))
+		utils.WriteJson(res, http.StatusInternalServerError, utils.GenerateError(utils.ErrInternal, errors.New("Order processing interrupted")))
 		return
 	}
 
-	r.pubsub.Subscribe(req.Context(), "ORDERS")
-	utils.WriteJson(res, http.StatusOK, utils.Response[string]{
-		Status:  200,
-		Message: "Order placed successfully",
-		Heading: "Order Placed",
-		Data:    "Order has been placed successfully",
-	})
+	var status, message string
+	switch {
+	case fill.ExecutedQuantity > 0:
+		status = "filled"
+		message = "Order filled successfully"
+	case fill.Fills != nil:
+		// Engine responded with 0 executedQty but non-nil fills slice — order queued
+		status = "queued"
+		message = "Order queued in the order book"
+	default:
+		// Fills is nil — timeout path (engine did not respond within 5s)
+		status = "accepted"
+		message = "Order accepted but engine did not respond in time. Your order is queued and will be processed."
+	}
 
+	utils.WriteJson(res, http.StatusOK, utils.Response[types.PlaceOrderResponse]{
+		Status:  200,
+		Heading: "Order Placed",
+		Message: message,
+		Data: types.PlaceOrderResponse{
+			OrderId:          fill.OrderId,
+			ExecutedQuantity: fill.ExecutedQuantity,
+			Fills:            fill.Fills,
+			Status:           status,
+			Message:          message,
+		},
+	})
 }

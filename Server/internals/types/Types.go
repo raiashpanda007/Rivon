@@ -193,8 +193,8 @@ type TeamDetails struct {
 type OrderTypes string
 
 const (
-	CREATE_ORDER OrderTypes = "create_order"
-	CANCEL_ORDER OrderTypes = "cancel_order"
+	BUY_ORDER  OrderTypes = "BUY"
+	SELL_ORDER OrderTypes = "SELL"
 )
 
 type RedisStreamMessage struct {
@@ -210,4 +210,37 @@ type MarketOrder struct {
 	Price     int64      `json:"price"`
 	Quantity  int64      `json:"quantity"`
 	OrderType OrderTypes `json:"orderType"`
+}
+
+type Fills struct {
+	Price       int    `json:"price"`
+	Quantity    int    `json:"quantity"`
+	TradeId     string `json:"tradeId"`
+	OtherUserId string `json:"otherUserId"`
+	OrderId     string `json:"orderId"`
+}
+
+type FillResult struct {
+	OrderId          string  `json:"orderId"`
+	ExecutedQuantity int     `json:"executedQty"`
+	Fills            []Fills `json:"fills"`
+}
+
+// PubSubOrderMessage mirrors the Engine's JSON payload on channel "ORDERS".
+// NOTE: Engine must json.Marshal the message before calling redisClient.Publish;
+// go-redis v8 uses fmt.Sprint on plain structs, not JSON. JSON tags must match
+// Engine's api.pubsub.go.
+type PubSubOrderMessage struct {
+	OrderId          string  `json:"orderId"`
+	Fills            []Fills `json:"fills"`
+	ExecutedQuantity int     `json:"executedQty"`
+	MessageType      string  `json:"type"`
+}
+
+type PlaceOrderResponse struct {
+	OrderId          string  `json:"orderId"`
+	ExecutedQuantity int     `json:"executedQty"`
+	Fills            []Fills `json:"fills"`
+	Status           string  `json:"status"`
+	Message          string  `json:"message"`
 }

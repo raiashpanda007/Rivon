@@ -7,17 +7,21 @@ import (
 )
 
 type PubSubService interface {
-	ApiPubSubServices
+	Api() ApiPubSubServices
 }
 
 type pubsubStruct struct {
-	ApiPubSubServices
+	api ApiPubSubServices
 }
 
 func InitPubSub(ctx context.Context, apiPubSubRedisClient *redis.Client) PubSubService {
 	apiPubSub := InitApiPubSub(ctx, apiPubSubRedisClient)
 
 	return &pubsubStruct{
-		ApiPubSubServices: apiPubSub,
+		api: apiPubSub,
 	}
+}
+
+func (p *pubsubStruct) Api() ApiPubSubServices {
+	return p.api
 }

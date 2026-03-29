@@ -3,14 +3,16 @@ package engine
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	database "github.com/raiashpanda007/rivon/engine/internals/Database"
-	"github.com/raiashpanda007/rivon/engine/internals/markets"
 	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	database "github.com/raiashpanda007/rivon/engine/internals/Database"
+	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
+	"github.com/raiashpanda007/rivon/engine/internals/markets"
 )
 
 func parseOrderMessage(values map[string]interface{}) (markets.OrderMessages, error) {
@@ -167,7 +169,7 @@ func startBatchedConsumers(ctx context.Context, redisClient *redis.Client, marke
 	slog.Info("All batch consumers started", "total_batches", batchCount, "total_streams", len(allMarkets))
 }
 
-func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *database.Database) error {
+func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *database.Database, pubsubSvc pubsub.PubSubService) error {
 	allMarkets, err := Db.GetAllMarkets()
 	var marketChannelMap = make(map[string]chan markets.OrderMessages)
 
@@ -180,7 +182,7 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 
 	for _, market := range allMarkets {
 		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis)
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc)
 	}
 
 	slog.Info("Initializing Redis streams...", "count", len(allMarkets))

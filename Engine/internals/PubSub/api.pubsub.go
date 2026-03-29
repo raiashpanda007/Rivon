@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -44,7 +45,12 @@ func InitApiPubSub(ctx context.Context, apiPubSubRedisClient *redis.Client) ApiP
 
 func (r *apiPubSubStruct) Publish(message PubSubOrderMessage) error {
 
-	err := r.redisClient.Publish(r.ctx, "ORDERS", message).Err()
+	data, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	err = r.redisClient.Publish(r.ctx, "ORDERS", string(data)).Err()
 
 	if err != nil {
 		return err

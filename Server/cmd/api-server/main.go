@@ -14,7 +14,7 @@ import (
 	"github.com/raiashpanda007/rivon/internals/database"
 	"github.com/raiashpanda007/rivon/internals/http/routes"
 	pubsub "github.com/raiashpanda007/rivon/internals/pub-sub"
-
+	"github.com/raiashpanda007/rivon/internals/registry"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
 )
 
@@ -29,8 +29,19 @@ func main() {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}
 
-	PubSubConn := pubsub.InitPubSub(Db.ApiEnginerPubSubRedis)
-	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn)
+	reg := registry.New()
+	PubSubConn := pubsub.InitPubSub(Db.ApiEnginerPubSubRedis, reg)
+
+	// Start subscriber goroutine before the HTTP server accepts requests.
+	subCtx, subCancel := context.WithCancel(context.Background())
+	defer subCancel()
+	go func() {
+		if err := PubSubConn.Subscribe(subCtx, "ORDERS"); err != nil {
+			slog.Error("PubSub subscriber exited", "error", err)
+		}
+	}()
+
+	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn, reg)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,
