@@ -313,6 +313,29 @@ func (r *authController) VerifyOTP(res http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
+
+	refreshTokenCookie, err := req.Cookie("refresh_token")
+	if err != nil {
+		slog.Error("Error retrieving refresh token cookie after OTP verification", "error", err)
+		utils.WriteJson(res, http.StatusUnauthorized, utils.GenerateError(utils.ErrUnauthorized, errors.New("OTP verified but could not refresh token: no refresh token cookie")))
+		return
+	}
+	newAccessToken, errType, err := r.services.CredentialRefreshToken(req.Context(), refreshTokenCookie.Value, userCred.Id.String())
+	if err != nil {
+		slog.Error("Error generating new access token after OTP verification", "error", err)
+		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
+		return
+	}
+	http.SetCookie(res, &http.Cookie{
+		Name:     "access_token",
+		Value:    newAccessToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.cookieSecure,
+		SameSite: http.SameSiteNoneMode,
+		MaxAge:   15 * 60,
+	})
+
 	utils.WriteJson(res, http.StatusAccepted, utils.Response[string]{
 		Status:  http.StatusAccepted,
 		Data:    "You are verified ... ",

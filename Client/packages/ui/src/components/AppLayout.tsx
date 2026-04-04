@@ -75,10 +75,10 @@ export function AppLayout({ children, currentApp }: AppLayoutProps) {
     }, [dispatch]);
 
     return (
-        <div className="h-screen w-full flex flex-col overflow-hidden">
+        <div className="h-screen w-full flex flex-col overflow-hidden bg-background bg-terminal-grid">
             <Header scrollDirection={scrollDirection} isScrolled={isScrolled} currentApp={currentApp} />
             <ScrollArea className="flex-1" viewportRef={viewportRef}>
-                <div className="pt-16 min-h-full w-full">
+                <div className="pt-14 min-h-full w-full max-w-full overflow-x-hidden">
                     {children}
                 </div>
             </ScrollArea>

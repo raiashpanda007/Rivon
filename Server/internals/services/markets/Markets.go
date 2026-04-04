@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/raiashpanda007/rivon/internals/registry"
 	"github.com/raiashpanda007/rivon/internals/types"
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
@@ -16,16 +19,21 @@ type MarketServices interface {
 	GetAllMarkets(ctx context.Context, teamDetails bool) ([]types.MarketTable, utils.ErrorType, error)
 	GetMarket(ctx context.Context, marketID string, teamDetails bool) (types.MarketTable, utils.ErrorType, error)
 	CreateMarket(ctx context.Context, teamID, marketName, marketCode string, lastPrice, volume24H, totalVolume, openPrice24H int64) (types.MarketTable, utils.ErrorType, error)
+	PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error)
 }
 
 type marketSvc struct {
-	repo MarketRepo
+	repo       MarketRepo
+	orderRedis *redis.Client
+	registry   *registry.Registry
 }
 
-func NewMarketServices(db *pgxpool.Pool) MarketServices {
+func NewMarketServices(db *pgxpool.Pool, orderRedis *redis.Client, reg *registry.Registry) MarketServices {
 	repo := NewMarketRepoServices(db)
 	return &marketSvc{
-		repo: repo,
+		repo:       repo,
+		orderRedis: orderRedis,
+		registry:   reg,
 	}
 }
 
@@ -79,4 +87,45 @@ func (r *marketSvc) CreateMarket(ctx context.Context, teamID, marketName, market
 
 	return market, utils.NoError, nil
 
+}
+
+func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error) {
+	orderId := uuid.New()
+
+	// Register before XAdd to eliminate the race where the Engine responds
+	// before the channel entry exists in the map.
+	ch := r.registry.Register(orderId.String())
+
+	_, err := r.orderRedis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "ORDERS_" + marketId.String(),
+		Values: map[string]interface{}{
+			"orderId":   orderId.String(),
+			"userId":    userId.String(),
+			"marketId":  marketId.String(),
+			"price":     price,
+			"quantity":  int(quantity),
+			"orderType": string(orderType),
+		},
+	}).Result()
+
+	if err != nil {
+		r.registry.Delete(orderId.String())
+		slog.Error("Unable to write on redis stream.", "error", err)
+		return types.FillResult{}, err
+	}
+
+	slog.Info("Order pushed to redis stream, waiting for engine response", "orderId", orderId, "marketId", marketId)
+
+	select {
+	case fill := <-ch:
+		slog.Info("Order fill received from engine", "orderId", orderId, "executedQty", fill.ExecutedQuantity)
+		return fill, nil
+	case <-time.After(5 * time.Second):
+		r.registry.Delete(orderId.String())
+		slog.Warn("Order timed out waiting for engine response", "orderId", orderId)
+		return types.FillResult{OrderId: orderId.String(), ExecutedQuantity: 0, Fills: nil}, nil
+	case <-ctx.Done():
+		r.registry.Delete(orderId.String())
+		return types.FillResult{}, ctx.Err()
+	}
 }

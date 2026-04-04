@@ -1,0 +1,22 @@
+{
+    "api-server": {
+        "dir": "./Server",
+        "entrypoint": "./cmd/api-server",
+        "type": "go"
+    },
+    "jobs": {
+        "dir": "./Server",
+        "entrypoint": "./cmd/jobs",
+        "type": "go"
+    },
+    "engine": {
+        "dir": "./Engine",
+        "entrypoint": "./cmd",
+        "type": "go"
+    },
+    "mailserver": {
+        "dir": "./MailServer",
+        "entrypoint": ".",
+        "type": "bun"
+    }
+}

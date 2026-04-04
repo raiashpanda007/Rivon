@@ -12,6 +12,20 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: mypass
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,22 +40,34 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: Server/go.mod
-          cache-dependency-path: Server/go.sum
+          cache-dependency-path: |
+            Server/go.sum
+            Engine/go.sum
+      - name: Install Migration Tool
+        run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+      - name: Add GOBIN to Path
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Install Client Dependencies
         working-directory: ./Client
         run: bun install
       - name: Install Server Dependencies
         working-directory: ./Server
         run: go mod tidy
+      - name: Install Engine Dependencies
+        working-directory: ./Engine
+        run: go mod tidy
+      - name: Install CLI Dependencies
+        working-directory: ./cli
+        run: go mod tidy
       - name: Install MailServer Dependencies
         working-directory: ./MailServer
         run: bun install
+      - name: Running Migrations Test
+        working-directory: ./cli
+        run: go run main.go migrate up
       - name: Building Client Side
         working-directory: ./Client
         run: bun run build
-      - name: Building Server Side
-        working-directory: ./Server
-        run: go run cli/main.go build
-      - name: Building MailServer Side
-        working-directory: ./MailServer
-        run: bun run build
+      - name: Building Backend Services
+        working-directory: ./cli
+        run: go run main.go build

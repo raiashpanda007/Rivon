@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -103,22 +104,27 @@ func (r *otpUtils) VerifyOTP(ctx context.Context, otp string, userID string) (bo
 
 }
 func (r *otpUtils) SendOTP(ctx context.Context, userID string, name string, otp string, email string) (utils.ErrorType, error) {
-	var template = fmt.Sprintf(`
-		<h2 style="color: #ffffff; margin-top: 0; font-weight: 700;">Verify your email</h2>
-		<p>Hi %s,</p>
-		<p>Welcome to Rivon 👋 Thanks for signing up. To complete your registration, please verify your email using the OTP below:</p>
-		
-		<div class="otp-block">
-			<div class="otp-text">%s</div>
-			<div class="copy-instruction">This code expires in 5 minutes</div>
-		</div>
+	firstName := name
+	if names := strings.Fields(name); len(names) > 0 {
+		firstName = names[0]
+	}
 
-		<p>If you didn't request this, you can safely ignore this email.</p>
-		<br>
-		<p>Rivon is being built step by step, and I genuinely appreciate you trying it out early. If you face any issues or have feedback, just reply to this email, I read everything.</p>
-		<br>
-		<p>Ashwin Rai<br>Creator, Rivon</p>
-	`, name, otp)
+	var template = fmt.Sprintf(`
+<h2 style="color: #ffffff; margin-top: 0; font-weight: 700;">Verify your email</h2>
+<p>Hi %s,</p>
+<p>Welcome to Rivon 👋 Thanks for signing up. To complete your registration, please verify your email using the OTP below:</p>
+
+<div class="otp-block">
+	<div class="otp-text">%s</div>
+	<div class="copy-instruction">This code expires in 5 minutes</div>
+</div>
+
+<p>If you didn't request this, you can safely ignore this email.</p>
+<br>
+<p>Rivon is being built step by step, and I genuinely appreciate you trying it out early. If you face any issues or have feedback, just reply to this email, I read everything.</p>
+<br>
+<p>Ashwin Rai<br>Creator, Rivon</p>
+	`, firstName, otp)
 	payload := map[string]string{
 		"email":   email,
 		"subject": "Verify your email for Rivon",

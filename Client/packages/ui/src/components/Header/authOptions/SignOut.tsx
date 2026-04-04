@@ -63,7 +63,7 @@ function SignOut() {
   return (
     <Button
       variant={"destructive"}
-      className="font-body font-semibold cursor-pointer"
+      className="font-semibold cursor-pointer"
       onClick={() => SignOutUser(userDetails?.id || "")}
       disabled={loading}
     >

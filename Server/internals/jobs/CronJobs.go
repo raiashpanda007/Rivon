@@ -5,8 +5,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/config"
+	"github.com/raiashpanda007/rivon/internals/registry"
 	"github.com/raiashpanda007/rivon/internals/services/markets"
 	"github.com/raiashpanda007/rivon/internals/types"
 	"github.com/raiashpanda007/rivon/internals/utils"
@@ -27,9 +29,9 @@ func timeConvertor(rawDate string) (time.Time, error) {
 	return time.Parse("2006-01-02", rawDate)
 }
 
-func NewCronJobs(db *pgxpool.Pool, cfg *config.Config) CronJobs {
+func NewCronJobs(db *pgxpool.Pool, cfg *config.Config, orderRedis *redis.Client) CronJobs {
 	repo := NewFootBallMetaRepo(db)
-	marketServices := markets.NewMarketServices(db)
+	marketServices := markets.NewMarketServices(db, orderRedis, registry.New())
 	return &cronJobs{
 		repo:      repo,
 		cfg:       cfg,

@@ -39,10 +39,10 @@ export function ShowResponseToast({ heading, message, statusCode, type }: ShowRe
       {/* Content */}
       <div className="flex flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-semibold text-foreground text-base text-orange-500 font-heading">{heading}</h3>
+          <h3 className="font-semibold text-foreground text-base text-orange-500">{heading}</h3>
           {statusCode && (
             <span className={cn(
-              "text-[10px] font-mono font-body px-1.5 py-0.5 rounded border whitespace-nowrap shrink-0",
+              "text-[10px] font-mono px-1.5 py-0.5 rounded border whitespace-nowrap shrink-0",
               type === "SUCESS" && "bg-green-500/10 text-green-500 border-green-500/20",
               type === "ERROR" && "bg-red-500/10 text-red-500 border-red-500/20",
               type === "INFORMATION" && "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
@@ -52,7 +52,7 @@ export function ShowResponseToast({ heading, message, statusCode, type }: ShowRe
           )}
         </div>
         <div className="text-sm text-muted-foreground break-words">
-          <span className="font-medium text-foreground font-body">Message: </span>
+          <span className="font-medium text-foreground">Message: </span>
           {message}
         </div>
       </div>

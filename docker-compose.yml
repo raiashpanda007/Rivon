@@ -13,3 +13,21 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  orderRedis:
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+
+  tradeRedis:
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6381:6379"
+
+  api-server-pubsub-redis:
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6382:6379"
