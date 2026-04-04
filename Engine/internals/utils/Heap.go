@@ -97,6 +97,12 @@ func NewMinHeap() *MinHeap {
 	}
 }
 
+func (h *MinHeap) Clone() *MinHeap {
+	dataCopy := make([]int, len(h.data))
+	copy(dataCopy, h.data)
+	return &MinHeap{Heap{data: dataCopy, less: h.less}}
+}
+
 type MaxHeap struct {
 	Heap
 }
@@ -110,4 +116,10 @@ func NewMaxHeap() *MaxHeap {
 			},
 		},
 	}
+}
+
+func (h *MaxHeap) Clone() *MaxHeap {
+	dataCopy := make([]int, len(h.data))
+	copy(dataCopy, h.data)
+	return &MaxHeap{Heap{data: dataCopy, less: h.less}}
 }

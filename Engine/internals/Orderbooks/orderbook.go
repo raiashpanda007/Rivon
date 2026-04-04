@@ -3,6 +3,7 @@ package orderbooks
 import (
 	"errors"
 	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 	heap "github.com/raiashpanda007/rivon/engine/internals/utils"
@@ -22,6 +23,7 @@ type Order struct {
 	Side     OrderSide
 	UserId   string
 	Price    int
+	StreamId string
 }
 
 type Fills struct {
@@ -40,9 +42,11 @@ type OrderBook struct {
 	UserOrderMap map[string]map[string]*Order
 	CurrentPrice int
 	LastTradeId  string
+	LastOrderId  string
+	LastStreamId string
 }
 
-func NewOrderBook(lastOrderId string, bids map[int][]Order, asks map[int][]Order, askHeap *heap.MinHeap, bidHeap *heap.MaxHeap, currentPrice int) OrderBook {
+func NewOrderBook(lastTradeId, lastOrderId, lastStreamId string, bids map[int][]Order, asks map[int][]Order, askHeap *heap.MinHeap, bidHeap *heap.MaxHeap, currentPrice int) OrderBook {
 	bidsCopy := make(map[int][]*Order)
 	asksCopy := make(map[int][]*Order)
 	userOrderMap := make(map[string]map[string]*Order)
@@ -57,6 +61,7 @@ func NewOrderBook(lastOrderId string, bids map[int][]Order, asks map[int][]Order
 				userOrderMap[orderPtr.UserId] = make(map[string]*Order)
 			}
 			userOrderMap[orderPtr.UserId][orderPtr.Id] = orderPtr
+
 		}
 	}
 
@@ -80,12 +85,61 @@ func NewOrderBook(lastOrderId string, bids map[int][]Order, asks map[int][]Order
 		AskHeap:      askHeap,
 		UserOrderMap: userOrderMap,
 		CurrentPrice: currentPrice,
-		LastTradeId:  lastOrderId,
+		LastTradeId:  lastTradeId,
+		LastOrderId:  lastOrderId,
+		LastStreamId: lastStreamId,
 	}
 }
 
-func (r *OrderBook) GetSnapshot() *OrderBook {
-	return r
+func (r *OrderBook) GetSnapshot() OrderBook {
+	// Map from original order pointer → its copy, so shared pointers
+	// between Bids/Asks and UserOrderMap all point to the same new object.
+	orderCopy := make(map[*Order]*Order)
+	copyOrder := func(o *Order) *Order {
+		if _, ok := orderCopy[o]; !ok {
+			cp := *o
+			orderCopy[o] = &cp
+		}
+		return orderCopy[o]
+	}
+
+	bidsCopy := make(map[int][]*Order, len(r.Bids))
+	for price, orders := range r.Bids {
+		slice := make([]*Order, len(orders))
+		for i, o := range orders {
+			slice[i] = copyOrder(o)
+		}
+		bidsCopy[price] = slice
+	}
+
+	asksCopy := make(map[int][]*Order, len(r.Asks))
+	for price, orders := range r.Asks {
+		slice := make([]*Order, len(orders))
+		for i, o := range orders {
+			slice[i] = copyOrder(o)
+		}
+		asksCopy[price] = slice
+	}
+
+	userOrderMapCopy := make(map[string]map[string]*Order, len(r.UserOrderMap))
+	for userId, orders := range r.UserOrderMap {
+		userOrderMapCopy[userId] = make(map[string]*Order, len(orders))
+		for orderId, o := range orders {
+			userOrderMapCopy[userId][orderId] = copyOrder(o)
+		}
+	}
+
+	return OrderBook{
+		Bids:         bidsCopy,
+		Asks:         asksCopy,
+		BidHeap:      r.BidHeap.Clone(),
+		AskHeap:      r.AskHeap.Clone(),
+		UserOrderMap: userOrderMapCopy,
+		CurrentPrice: r.CurrentPrice,
+		LastTradeId:  r.LastTradeId,
+		LastOrderId:  r.LastOrderId,
+		LastStreamId: r.LastStreamId,
+	}
 }
 
 func (r *OrderBook) addOrderToBids(order *Order, price int) {
@@ -347,11 +401,16 @@ func (r *OrderBook) GetDepth() (map[int][]*Order, map[int][]*Order) {
 }
 
 func (r *OrderBook) AddOrder(order Order, price int) ([]Fills, int, error) {
+	slog.Info("ORDER RECIEVED ::", order)
+
+	r.LastOrderId = order.Id
 	if order.Side == BUY {
 		fills, executedQty := r.matchBids(&order, price)
+		r.LastStreamId = order.StreamId
 		return fills, executedQty, nil
 	} else if order.Side == SELL {
 		fills, executedQty := r.matchAsks(&order, price)
+		r.LastStreamId = order.StreamId
 		return fills, executedQty, nil
 	}
 

@@ -15,7 +15,7 @@ const (
 	CANCELLED_ORDER TradeStreamTypes = "order_cancelled"
 )
 
-func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, orderId, marketId string, fills []orderbooks.Fills, executedQty int, price int, tradeRedisClient *redis.Client) {
+func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, orderId, marketId, lastOrderId, lastTradeId string, fills []orderbooks.Fills, executedQty int, price int, tradeRedisClient *redis.Client) {
 
 	fillsJSON, err := json.Marshal(fills)
 	if err != nil {
@@ -32,6 +32,8 @@ func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, 
 			"executedQty": executedQty,
 			"price":       price,
 			"orderId":     orderId,
+			"lastOrderId": lastOrderId,
+			"lastTradeId": lastTradeId,
 		},
 	}).Result()
 

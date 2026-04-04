@@ -6,11 +6,46 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 
 	"github.com/joho/godotenv"
 )
+
+var (
+	runningCmds   []*exec.Cmd
+	runningCmdsMu sync.Mutex
+)
+
+func registerCmd(cmd *exec.Cmd) {
+	runningCmdsMu.Lock()
+	runningCmds = append(runningCmds, cmd)
+	runningCmdsMu.Unlock()
+}
+
+func unregisterCmd(cmd *exec.Cmd) {
+	runningCmdsMu.Lock()
+	for i, c := range runningCmds {
+		if c == cmd {
+			runningCmds = append(runningCmds[:i], runningCmds[i+1:]...)
+			break
+		}
+	}
+	runningCmdsMu.Unlock()
+}
+
+func killAllCmds() {
+	runningCmdsMu.Lock()
+	defer runningCmdsMu.Unlock()
+	for _, cmd := range runningCmds {
+		if cmd.Process != nil {
+			// Kill the entire process group to catch grandchildren (e.g. the binary spawned by `go run`)
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+	}
+}
 
 type Command string
 
@@ -67,7 +102,15 @@ func runCmdInDir(dir, command string, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	// Put child in its own process group so killing -pgid reaches grandchildren (e.g. binary spawned by `go run`)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	registerCmd(cmd)
+	err := cmd.Wait()
+	unregisterCmd(cmd)
+	return err
 }
 
 func migrate(databaseURL string, direction string) {
@@ -148,7 +191,9 @@ func start(target ...string) {
 				runErr = runCmdInDir(dir, "bun", "run", "dev")
 			}
 			if runErr != nil {
-				log.Fatalf("UNABLE TO START THE APPLICATION :: %s :: %s", name, runErr.Error())
+				log.Printf("UNABLE TO START THE APPLICATION :: %s :: %s", name, runErr.Error())
+				killAllCmds()
+				os.Exit(1)
 			}
 			log.Printf("APPLICATION FINISHED :: %s", name)
 		}(name, serviceConfig)
@@ -182,7 +227,9 @@ func build(target ...string) {
 				buildErr = runCmdInDir(dir, "bun", "run", "build")
 			}
 			if buildErr != nil {
-				log.Fatalf("UNABLE TO BUILD THIS SERVICE :: %s :: %s", name, buildErr.Error())
+				log.Printf("UNABLE TO BUILD THIS SERVICE :: %s :: %s", name, buildErr.Error())
+				killAllCmds()
+				os.Exit(1)
 			}
 		}(name, serviceConfig)
 	}
@@ -191,6 +238,15 @@ func build(target ...string) {
 
 func main() {
 	slog.Info("---------CLI TOOL RUNNING FOR RIVON PROJECT--------")
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		<-sigCh
+		log.Println("SHUTTING DOWN ALL SERVICES...")
+		killAllCmds()
+		os.Exit(0)
+	}()
 
 	if len(os.Args) < 2 {
 		log.Fatalf("usage: cli <start | build | add | migrate> [services...]\n  migrate expects: migrate <up|down>")

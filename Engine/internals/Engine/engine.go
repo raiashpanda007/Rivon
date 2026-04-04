@@ -15,7 +15,7 @@ import (
 	"github.com/raiashpanda007/rivon/engine/internals/markets"
 )
 
-func parseOrderMessage(values map[string]interface{}) (markets.OrderMessages, error) {
+func parseOrderMessage(values map[string]interface{}, streamId string) (markets.OrderMessages, error) {
 
 	priceStr := values["price"].(string)
 	qtyStr := values["quantity"].(string)
@@ -37,6 +37,7 @@ func parseOrderMessage(values map[string]interface{}) (markets.OrderMessages, er
 		Price:     price,
 		Quantity:  qty,
 		OrderType: values["orderType"].(string),
+		StreamId:  streamId,
 	}, nil
 }
 
@@ -130,7 +131,8 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 
 		for _, stream := range res {
 			for _, message := range stream.Messages {
-				msg, err := parseOrderMessage(message.Values)
+				msg, err := parseOrderMessage(message.Values, message.ID)
+
 				if err != nil {
 					slog.Error("Error in parsing the stream message :: ", err)
 					continue
@@ -142,6 +144,15 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 
 				select {
 				case ch <- msg:
+
+				/*
+						___________________________________
+					|                                    |
+					|Warning in case of message dropping |
+					|____________________________________|
+
+				*/
+
 				default:
 					slog.Warn("Channel full, dropping message", "marketId", msg.MarketId)
 				}
@@ -182,7 +193,7 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 
 	for _, market := range allMarkets {
 		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc)
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id)
 	}
 
 	slog.Info("Initializing Redis streams...", "count", len(allMarkets))
