@@ -26,21 +26,21 @@ type OrderMessages struct {
 
 func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client, pubsubSvc pubsub.PubSubService, marketId string) {
 
-	var lastTradeId = ""
-	var lastOrderId = ""
-	var bids map[int][]orderbooks.Order
-	var asks map[int][]orderbooks.Order
-	var askHeap heap.MinHeap
-	var bidHeap heap.MaxHeap
-	var currentPrice int = 0
-
-	OrderBook := orderbooks.NewOrderBook(lastTradeId, lastOrderId, "", bids, asks, &askHeap, &bidHeap, currentPrice)
-
-	// Snapshot helper
+	// Restore orderbook from latest snapshot, or start fresh.
+	var OrderBook orderbooks.OrderBook
+	if snap, ok := snapshots.ReadLastSnapShotForMarket(marketId); ok {
+		OrderBook = *snap
+		slog.Info("Orderbook restored from snapshot",
+			"marketId", marketId,
+			"currentPrice", OrderBook.CurrentPrice,
+			"lastStreamId", OrderBook.LastStreamId,
+		)
+	} else {
+		OrderBook = orderbooks.NewOrderBook("", "", "", nil, nil, heap.NewMinHeap(), heap.NewMaxHeap(), 0)
+		slog.Info("Started fresh orderbook", "marketId", marketId)
+	}
 
 	baseInterval := 1 * time.Minute
-
-	// first timer
 	timer := time.NewTimer(baseInterval + time.Duration(rand.Intn(10))*time.Second)
 
 	for {
@@ -66,16 +66,13 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			}
 
 			Fills, executedQty, err := OrderBook.AddOrder(inputOrder, order.Price)
-
 			if err != nil {
 				slog.Error("Error adding order", "err", err)
 				continue
 			}
 
-			// ✅ IMPORTANT: update streamId AFTER success
 			OrderBook.LastStreamId = order.StreamId
 
-			// async trade publish
 			go tradestream.TradeRedisStreamPublisher(
 				ctx,
 				tradestream.ORDER_UPDATED,
@@ -89,7 +86,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				tradeRedis,
 			)
 
-			// async pubsub
 			go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
 				OrderId:          order.OrderId,
 				Fills:            Fills,
@@ -98,7 +94,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			})
 
 			bids, asks := OrderBook.GetDepth()
-
 			slog.Info("orderbook state",
 				"bidLevels", len(bids),
 				"askLevels", len(asks),
@@ -113,12 +108,11 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 
 			slog.Info("Taking snapshot", "marketId", marketId)
 
-			// safe: same goroutine
+			// GetSnapshot deep-copies synchronously so the goroutine
+			// works on an independent copy — no data race.
+			snap := OrderBook.GetSnapshot()
+			go snapshots.SaveSnapShot(marketId, snap)
 
-			// async save
-			go snapshots.SaveSnapShot(marketId, OrderBook)
-
-			// reset timer with jitter
 			timer.Reset(baseInterval + time.Duration(rand.Intn(10))*time.Second)
 		}
 	}

@@ -1,5 +1,7 @@
 package heap
 
+import "github.com/vmihailenco/msgpack/v5"
+
 type Heap struct {
 	data []int
 	less func(a, b int) bool
@@ -122,4 +124,30 @@ func (h *MaxHeap) Clone() *MaxHeap {
 	dataCopy := make([]int, len(h.data))
 	copy(dataCopy, h.data)
 	return &MaxHeap{Heap{data: dataCopy, less: h.less}}
+}
+
+func (h *MinHeap) EncodeMsgpack(enc *msgpack.Encoder) error {
+	return enc.Encode(h.data)
+}
+
+func (h *MinHeap) DecodeMsgpack(dec *msgpack.Decoder) error {
+	fresh := NewMinHeap()
+	if err := dec.Decode(&fresh.data); err != nil {
+		return err
+	}
+	h.Heap = fresh.Heap
+	return nil
+}
+
+func (h *MaxHeap) EncodeMsgpack(enc *msgpack.Encoder) error {
+	return enc.Encode(h.data)
+}
+
+func (h *MaxHeap) DecodeMsgpack(dec *msgpack.Decoder) error {
+	fresh := NewMaxHeap()
+	if err := dec.Decode(&fresh.data); err != nil {
+		return err
+	}
+	h.Heap = fresh.Heap
+	return nil
 }
