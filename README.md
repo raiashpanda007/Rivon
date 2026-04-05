@@ -191,6 +191,24 @@ Market Goroutine  (1 per market)
 
 The fully isolated container-per-market model remains the right long-term architecture for exchange-grade horizontal scaling. The goroutine model is a deliberate, cost-conscious choice that achieves the same isolation guarantee within a single process at near-zero infrastructure overhead.
 
+### Orderbook Snapshots
+
+Each market goroutine periodically persists its orderbook state to disk as a msgpack file under `snapshots/<market_id>/`. On startup, the engine reads the latest snapshot and fully restores the live orderbook — including all resting orders and the bid/ask heap state — before processing any new messages.
+
+The snapshot format uses a flat deduplicated order list paired with `price → [orderId, ...]` index maps rather than serialising the live `map[int][]*Order` maps directly. This sidesteps the pointer-aliasing problem: when Go maps containing `*Order` pointers are deserialised, each pointer becomes a distinct copy, breaking the shared-pointer invariant that the matching logic depends on (`Bids`, `Asks`, and `UserOrderMap` must all reference the same `Order` objects). The flat format feeds directly into `NewOrderBook`, which rebuilds pointer-sharing correctly.
+
+Heaps are reconstructed from the price keys present in the restored bid/ask maps rather than being serialised directly — this avoids the equally tricky problem that `Heap.less` is a function and cannot be round-tripped through any serialiser. The custom `EncodeMsgpack`/`DecodeMsgpack` methods on `MinHeap` and `MaxHeap` exist as a safety net for any code paths that serialise an `OrderBook` value directly.
+
+Snapshot files are written asynchronously. `GetSnapshot()` is called synchronously on the market goroutine first to produce a fully independent deep copy, eliminating any data race between the snapshot goroutine and incoming orders. Only the three most recent snapshots are kept per market; older files are pruned automatically after each save.
+
+```
+snapshots/
+└── <market_id>/
+    ├── 1712345600.mpac   ← oldest retained
+    ├── 1712346200.mpac
+    └── 1712346800.mpac   ← latest (loaded on restart)
+```
+
 ---
 
 ## Tech Stack
@@ -276,7 +294,8 @@ Standalone Go binary. No HTTP. Reads from Order Redis, writes to Trade Redis.
 | `internals/Engine/engine.go` | Boot: load markets from DB, init streams, spawn goroutines |
 | `internals/markets/market.go` | Per-market goroutine — owns its orderbook for its lifetime |
 | `internals/Orderbooks/orderbook.go` | Matching logic, partial fills, cancellation, depth queries |
-| `internals/utils/Heap.go` | MinHeap and MaxHeap — O(log n) insert/pop/peek |
+| `internals/utils/Heap.go` | MinHeap and MaxHeap — O(log n) insert/pop/peek — msgpack-serialisable |
+| `internals/Snapshots/snapshots.go` | Orderbook persistence — save/load/prune msgpack snapshots |
 | `internals/utils/TradeStream/` | Publishes fill events to Trade Redis Stream |
 
 ### MailServer — `MailServer/`
@@ -398,7 +417,7 @@ Settlement currently happens synchronously after the server reads from Trade Red
 ## Roadmap
 
 - [ ] **WebSocket server** — live orderbook depth, trade tape, and price feed without polling
-- [ ] **Persistent orderbook** — restore open orders from PostgreSQL on engine restart
+- [x] **Persistent orderbook** — msgpack snapshot save/restore; full orderbook state (orders, heaps, price) recovered on restart without hitting PostgreSQL
 - [ ] **Market resolution** — settle positions on match outcome (win / draw / loss)
 - [ ] **In-play markets** — prices update as live match events occur (goals, red cards, penalties)
 - [ ] **Portfolio analytics** — P&L tracking, realized/unrealized breakdown, position history
