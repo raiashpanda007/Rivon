@@ -189,18 +189,18 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 		return err
 	}
 
-	slog.Info("Creating market channels", "count", len(allMarkets))
-
-	for _, market := range allMarkets {
-		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id)
-	}
-
 	slog.Info("Initializing Redis streams...", "count", len(allMarkets))
 	if err := redisStreamProducers(ctx, OrderRedis, allMarkets); err != nil {
 		slog.Error("Failed to initialize streams", "error", err)
 		return err
 	}
+
+	slog.Info("Creating market channels and starting processors", "count", len(allMarkets))
+	for _, market := range allMarkets {
+		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis)
+	}
+
 	slog.Info("All streams ready, starting consumers...")
 	startBatchedConsumers(ctx, OrderRedis, marketChannelMap, allMarkets)
 

@@ -27,11 +27,12 @@ type Order struct {
 }
 
 type Fills struct {
-	Price       int
-	Quantity    int
-	TradeId     string
-	OtherUserId string
-	OrderId     string
+	Price        int
+	Quantity     int
+	TradeId      string
+	OtherUserId  string
+	OtherOrderId string
+	OrderId      string
 }
 
 type OrderBook struct {
@@ -238,11 +239,12 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 
 			tradeId := uuid.NewString()
 			fills = append(fills, Fills{
-				Price:       bestAskPrice,
-				Quantity:    matchQuantity,
-				OtherUserId: queuedOrder.UserId,
-				OrderId:     order.Id,
-				TradeId:     tradeId,
+				Price:        bestAskPrice,
+				Quantity:     matchQuantity,
+				OtherUserId:  queuedOrder.UserId,
+				OtherOrderId: queuedOrder.Id,
+				OrderId:      order.Id,
+				TradeId:      tradeId,
 			})
 
 			log.Printf("[FILL] tradeId=%s price=%d qty=%d buyerId=%s sellerId=%s bidFilled=%d/%d askFilled=%d/%d",
@@ -349,11 +351,12 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 
 			tradeId := uuid.NewString()
 			fills = append(fills, Fills{
-				Price:       bestBidPrice,
-				Quantity:    matchQuantity,
-				OtherUserId: queuedOrder.UserId,
-				OrderId:     order.Id,
-				TradeId:     tradeId,
+				Price:        bestBidPrice,
+				Quantity:     matchQuantity,
+				OtherUserId:  queuedOrder.UserId,
+				OtherOrderId: queuedOrder.Id,
+				OrderId:      order.Id,
+				TradeId:      tradeId,
 			})
 
 			log.Printf("[FILL] tradeId=%s price=%d qty=%d sellerId=%s buyerId=%s askFilled=%d/%d bidFilled=%d/%d",

@@ -213,11 +213,12 @@ type MarketOrder struct {
 }
 
 type Fills struct {
-	Price       int    `json:"price"`
-	Quantity    int    `json:"quantity"`
-	TradeId     string `json:"tradeId"`
-	OtherUserId string `json:"otherUserId"`
-	OrderId     string `json:"orderId"`
+	Price        int    `json:"price"`
+	Quantity     int    `json:"quantity"`
+	TradeId      string `json:"tradeId"`
+	OtherUserId  string `json:"otherUserId"`
+	OtherOrderId string `json:"otherOrderId"`
+	OrderId      string `json:"orderId"`
 }
 
 type FillResult struct {

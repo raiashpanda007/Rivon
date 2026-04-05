@@ -12,9 +12,6 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// snapshotData is the on-disk format for an OrderBook.
-// It uses a flat order list + price→IDs maps to avoid pointer-sharing problems
-// that arise when serialising map[int][]*Order directly.
 type snapshotData struct {
 	Orders       []orderbooks.Order
 	BidOrderIds  map[int][]string
@@ -67,9 +64,6 @@ func toSnapshotData(ob orderbooks.OrderBook) snapshotData {
 	}
 }
 
-// fromSnapshotData reconstructs an OrderBook from the serialised form.
-// It uses NewOrderBook so that pointer-sharing between Bids/Asks/UserOrderMap
-// is correctly established.
 func fromSnapshotData(sd snapshotData) orderbooks.OrderBook {
 	orderById := make(map[string]orderbooks.Order, len(sd.Orders))
 	for _, o := range sd.Orders {
