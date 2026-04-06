@@ -1,0 +1,11 @@
+{
+  "name": "rivon-bots",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "load-test": "node --env-file=.env load-test/load-test-place-order.js"
+  },
+  "dependencies": {
+    "autocannon": "^7.15.0"
+  }
+}

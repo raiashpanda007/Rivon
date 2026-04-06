@@ -1,1 +1,4 @@
 snapshots/**/*.mpac
+node_modules/
+.env
+CONSUMER.md
