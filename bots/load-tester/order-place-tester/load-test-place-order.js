@@ -1,21 +1,9 @@
 #!/usr/bin/env node
 
-/**
- * Autocannon load test for POST /api/rivon/markets/create-order
- *
- * Usage:
- *   TOKEN=<jwt> MARKET_ID=<uuid> node load-test-place-order.js [options]
- *
- * Options:
- *   --duration  1 | 5 | 10        minutes  (default: 1)
- *   --rate      10 | 20 | 50 | 100  req/s  (default: 10)
- *   --url       base URL           (default: http://localhost:8080)
- *
- * Examples:
- *   TOKEN=abc MARKET_ID=uuid node load-test-place-order.js --duration 5 --rate 50
- */
+
 
 const autocannon = require("autocannon");
+const Redis = require("ioredis");
 
 // ── Config from env / CLI args ────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -26,6 +14,7 @@ function arg(name, fallback) {
 }
 
 const BASE_URL = arg("url", process.env.BASE_URL || "http://localhost:8080");
+const ORDER_REDIS_URL = arg("redis", process.env.ORDER_REDIS_URL || "redis://localhost:6380");
 const TOKEN = process.env.TOKEN;
 const MARKET_ID = process.env.MARKET_ID;
 
@@ -72,6 +61,37 @@ function makeBody(i) {
   });
 }
 
+// ── Stream length tracker ─────────────────────────────────────────────────────
+const STREAM_KEY = `ORDERS_${MARKET_ID}`;
+let maxStreamLen = 0;
+let streamPoller = null;
+
+async function startStreamPoller() {
+  const redis = new Redis(ORDER_REDIS_URL, { lazyConnect: true });
+  try {
+    await redis.connect();
+  } catch (e) {
+    console.warn(`⚠  Could not connect to Order Redis (${ORDER_REDIS_URL}): ${e.message}`);
+    console.warn("   Stream length tracking disabled.");
+    return null;
+  }
+
+  // Poll every 500 ms
+  streamPoller = setInterval(async () => {
+    try {
+      const len = await redis.xlen(STREAM_KEY);
+      if (len > maxStreamLen) maxStreamLen = len;
+    } catch (_) {}
+  }, 500);
+
+  return redis;
+}
+
+function stopStreamPoller(redis) {
+  if (streamPoller) clearInterval(streamPoller);
+  if (redis) redis.disconnect();
+}
+
 // ── Run ───────────────────────────────────────────────────────────────────────
 console.log(`
 ╔══════════════════════════════════════════════════════╗
@@ -86,40 +106,49 @@ console.log(`
 
 let requestIndex = 0;
 
-const instance = autocannon(
-  {
-    url: `${BASE_URL}/api/rivon/markets/create-order`,
-    method: "POST",
-    duration: durationSec,
-    amount: undefined,          // duration-based, not count-based
-    connections: Math.ceil(rate / 5), // ~5 req/conn keeps pipeline sane
-    pipelining: 1,
-    overallRate: rate,             // autocannon honours this as a token-bucket cap
-    headers: {
-      "content-type": "application/json",
-      // JWT is sent as a cookie — mirrors the browser auth flow
-      cookie: `access_token=${TOKEN}`,
-    },
-    setupClient(client) {
-      client.setBody(makeBody(requestIndex++));
-      client.on("response", () => {
-        client.setBody(makeBody(requestIndex++));
-      });
-    },
-  },
-  (err, result) => {
-    if (err) {
-      console.error("Autocannon error:", err);
-      process.exit(1);
-    }
-    printSummary(result, durationMin, rate);
-  }
-);
+(async () => {
+  const redis = await startStreamPoller();
 
-autocannon.track(instance, { renderProgressBar: true });
+  const instance = autocannon(
+    {
+      url: `${BASE_URL}/api/rivon/markets/create-order`,
+      method: "POST",
+      duration: durationSec,
+      amount: undefined,          // duration-based, not count-based
+      connections: Math.ceil(rate / 5), // ~5 req/conn keeps pipeline sane
+      pipelining: 1,
+      overallRate: rate,             // autocannon honours this as a token-bucket cap
+      headers: {
+        "content-type": "application/json",
+        // JWT is sent as a cookie — mirrors the browser auth flow
+        cookie: `access_token=${TOKEN}`,
+      },
+      setupClient(client) {
+        client.setBody(makeBody(requestIndex++));
+        client.on("response", () => {
+          client.setBody(makeBody(requestIndex++));
+        });
+      },
+    },
+    (err, result) => {
+      stopStreamPoller(redis);
+      if (err) {
+        console.error("Autocannon error:", err);
+        process.exit(1);
+      }
+      printSummary(result, durationMin, rate, maxStreamLen);
+    }
+  );
+
+  autocannon.track(instance, { renderProgressBar: true });
+})();
 
 // ── Pretty summary ────────────────────────────────────────────────────────────
-function printSummary(r, durMin, rateTarget) {
+function printSummary(r, durMin, rateTarget, peakStreamLen) {
+  const streamLenStr = peakStreamLen > 0
+    ? String(peakStreamLen)
+    : "n/a (redis unavailable)";
+
   console.log(`
 ┌─────────────────────────────────────────────────────┐
 │                   RESULTS SUMMARY                   │
@@ -140,6 +169,9 @@ function printSummary(r, durMin, rateTarget) {
 │  Timeouts                │ ${String(r.timeouts).padEnd(24)} │
 ├──────────────────────────┼──────────────────────────┤
 │  Throughput (avg)        │ ${String((r.throughput.average / 1024).toFixed(1) + " KB/sec").padEnd(24)} │
+├──────────────────────────┼──────────────────────────┤
+│  Stream: ${STREAM_KEY.padEnd(15)} │                          │
+│  Peak stream length      │ ${streamLenStr.padEnd(24)} │
 └──────────────────────────┴──────────────────────────┘
 `);
 
