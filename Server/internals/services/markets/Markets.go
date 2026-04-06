@@ -20,6 +20,7 @@ type MarketServices interface {
 	GetMarket(ctx context.Context, marketID string, teamDetails bool) (types.MarketTable, utils.ErrorType, error)
 	CreateMarket(ctx context.Context, teamID, marketName, marketCode string, lastPrice, volume24H, totalVolume, openPrice24H int64) (types.MarketTable, utils.ErrorType, error)
 	PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error)
+	CancelOrder(ctx context.Context, userId, marketId, orderId uuid.UUID) (types.FillResult, error)
 }
 
 type marketSvc struct {
@@ -87,6 +88,44 @@ func (r *marketSvc) CreateMarket(ctx context.Context, teamID, marketName, market
 
 	return market, utils.NoError, nil
 
+}
+
+func (r *marketSvc) CancelOrder(ctx context.Context, userId, marketId, orderId uuid.UUID) (types.FillResult, error) {
+	ch := r.registry.Register(orderId.String())
+
+	_, err := r.orderRedis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "ORDERS_" + marketId.String(),
+		Values: map[string]interface{}{
+			"orderId":   orderId.String(),
+			"userId":    userId.String(),
+			"marketId":  marketId.String(),
+			"orderType": string(types.CANCEL_ORDER),
+			"price":     0,
+			"quantity":  0,
+		},
+	}).Result()
+
+	if err != nil {
+		r.registry.Delete(orderId.String())
+		slog.Error("Unable to write cancel order on redis stream.", "error", err)
+		return types.FillResult{}, err
+	}
+
+	slog.Info("Cancel order pushed to redis stream, waiting for engine response", "orderId", orderId, "marketId", marketId)
+
+	select {
+	case <-ch:
+		slog.Info("Cancel order acknowledged by engine", "orderId", orderId)
+		// Return empty non-nil Fills slice to signal engine confirmed the cancel.
+		return types.FillResult{OrderId: orderId.String(), ExecutedQuantity: 0, Fills: []types.Fills{}}, nil
+	case <-time.After(5 * time.Second):
+		r.registry.Delete(orderId.String())
+		slog.Warn("Cancel order timed out waiting for engine response", "orderId", orderId)
+		return types.FillResult{OrderId: orderId.String(), ExecutedQuantity: 0, Fills: nil}, nil
+	case <-ctx.Done():
+		r.registry.Delete(orderId.String())
+		return types.FillResult{}, ctx.Err()
+	}
 }
 
 func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error) {

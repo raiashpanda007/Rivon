@@ -71,6 +71,37 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 		silentCount, normalCount := 0, 0
 
 		for _, msg := range replayMsgs {
+			OrderBook.LastStreamId = msg.StreamId
+
+			if msg.OrderType == "CANCEL_ORDER" {
+				OrderBook.CancelOrder(msg.OrderId, msg.UserId)
+				if !silent {
+					normalCount++
+					go tradestream.TradeRedisStreamPublisher(
+						ctx,
+						tradestream.CANCELLED_ORDER,
+						msg.OrderId,
+						marketId,
+						OrderBook.LastOrderId,
+						OrderBook.LastTradeId,
+						nil,
+						0,
+						0,
+						tradeRedis,
+					)
+					go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
+						OrderId:     msg.OrderId,
+						MessageType: pubsub.ORDER_CANCEL,
+					})
+				} else {
+					silentCount++
+				}
+				if silent && msg.OrderId == pivotOrderId {
+					silent = false
+				}
+				continue
+			}
+
 			inputOrder := orderbooks.Order{
 				Id:       msg.OrderId,
 				Quantity: msg.Quantity,
@@ -86,7 +117,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				slog.Error("Replay AddOrder error", "orderId", msg.OrderId, "err", err)
 				continue
 			}
-			OrderBook.LastStreamId = msg.StreamId
 
 			if !silent {
 				normalCount++
@@ -141,7 +171,33 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				"orderId", order.OrderId,
 				"marketId", order.MarketId,
 				"streamID", order.StreamId,
+				"orderType", order.OrderType,
 			)
+
+			OrderBook.LastStreamId = order.StreamId
+
+			if order.OrderType == "CANCEL_ORDER" {
+				cancelled := OrderBook.CancelOrder(order.OrderId, order.UserId)
+				slog.Info("cancel order processed", "orderId", order.OrderId, "cancelled", cancelled)
+
+				go tradestream.TradeRedisStreamPublisher(
+					ctx,
+					tradestream.CANCELLED_ORDER,
+					order.OrderId,
+					order.MarketId,
+					OrderBook.LastOrderId,
+					OrderBook.LastTradeId,
+					nil,
+					0,
+					0,
+					tradeRedis,
+				)
+				go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
+					OrderId:     order.OrderId,
+					MessageType: pubsub.ORDER_CANCEL,
+				})
+				continue
+			}
 
 			inputOrder := orderbooks.Order{
 				Id:       order.OrderId,
@@ -158,8 +214,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				slog.Error("Error adding order", "err", err)
 				continue
 			}
-
-			OrderBook.LastStreamId = order.StreamId
 
 			go tradestream.TradeRedisStreamPublisher(
 				ctx,

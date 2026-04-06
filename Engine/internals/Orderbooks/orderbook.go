@@ -458,8 +458,8 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 					delete(r.Bids, price)
 				}
 				delete(userOrders, orderId)
-				log.Printf("[CANCEL] BID cancelled orderId=%s userId=%s price=%d filled=%d/%d",
-					orderId, userId, price, o.Filled, o.Quantity)
+				log.Printf("[CANCEL] BID cancelled orderId=%s userId=%s price=%d filled=%d/%d remaining=%d rolled back",
+					orderId, userId, price, o.Filled, o.Quantity, o.Quantity-o.Filled)
 				return true
 			}
 		}
@@ -473,8 +473,8 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 					delete(r.Asks, price)
 				}
 				delete(userOrders, orderId)
-				log.Printf("[CANCEL] ASK cancelled orderId=%s userId=%s price=%d filled=%d/%d",
-					orderId, userId, price, o.Filled, o.Quantity)
+				log.Printf("[CANCEL] ASK cancelled orderId=%s userId=%s price=%d filled=%d/%d remaining=%d rolled back",
+					orderId, userId, price, o.Filled, o.Quantity, o.Quantity-o.Filled)
 				return true
 			}
 		}
