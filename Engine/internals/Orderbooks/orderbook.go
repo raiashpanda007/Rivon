@@ -2,8 +2,6 @@ package orderbooks
 
 import (
 	"errors"
-	"log"
-	"log/slog"
 
 	"github.com/google/uuid"
 	heap "github.com/raiashpanda007/rivon/engine/internals/utils"
@@ -144,14 +142,10 @@ func (r *OrderBook) GetSnapshot() OrderBook {
 }
 
 func (r *OrderBook) addOrderToBids(order *Order, price int) {
-	isNewLevel := false
 	if _, exists := r.Bids[price]; !exists {
 		r.BidHeap.Insert(price)
-		isNewLevel = true
 	}
 	r.Bids[price] = append(r.Bids[price], order)
-	log.Printf("[BID QUEUED] orderId=%s userId=%s price=%d qty=%d filled=%d newLevel=%v",
-		order.Id, order.UserId, price, order.Quantity, order.Filled, isNewLevel)
 
 	if _, exists := r.UserOrderMap[order.UserId]; !exists {
 		r.UserOrderMap[order.UserId] = make(map[string]*Order)
@@ -160,14 +154,10 @@ func (r *OrderBook) addOrderToBids(order *Order, price int) {
 }
 
 func (r *OrderBook) addOrderToAsks(order *Order, price int) {
-	isNewLevel := false
 	if _, ok := r.Asks[price]; !ok {
 		r.AskHeap.Insert(price)
-		isNewLevel = true
 	}
 	r.Asks[price] = append(r.Asks[price], order)
-	log.Printf("[ASK QUEUED] orderId=%s userId=%s price=%d qty=%d filled=%d newLevel=%v",
-		order.Id, order.UserId, price, order.Quantity, order.Filled, isNewLevel)
 
 	if _, exists := r.UserOrderMap[order.UserId]; !exists {
 		r.UserOrderMap[order.UserId] = make(map[string]*Order)
@@ -180,23 +170,16 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 	var executedQty int = 0
 	var queued bool
 
-	log.Printf("[MATCH BID START] orderId=%s userId=%s price=%d qty=%d askLevels=%d",
-		order.Id, order.UserId, price, order.Quantity, r.AskHeap.Size())
-
 	for order.Filled < order.Quantity {
 		if r.AskHeap.Size() == 0 {
-			log.Printf("[MATCH BID] no asks available — queuing orderId=%s at price=%d", order.Id, price)
 			r.addOrderToBids(order, price)
 			queued = true
 			break
 		}
 
 		bestAskPrice := r.AskHeap.Peek()
-		log.Printf("[MATCH BID] bestAsk=%d incomingBid=%d orderId=%s remaining=%d",
-			bestAskPrice, price, order.Id, order.Quantity-order.Filled)
 
 		if price < bestAskPrice {
-			log.Printf("[MATCH BID] bid price %d < bestAsk %d — queuing orderId=%s", price, bestAskPrice, order.Id)
 			r.addOrderToBids(order, price)
 			queued = true
 			break
@@ -204,7 +187,6 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 
 		askOrders := r.Asks[bestAskPrice]
 		if len(askOrders) == 0 {
-			log.Printf("[MATCH BID] empty ask level at price=%d — popping heap", bestAskPrice)
 			r.AskHeap.Pop()
 			continue
 		}
@@ -219,7 +201,6 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 			queuedOrder := askOrders[i]
 
 			if queuedOrder.Filled >= queuedOrder.Quantity {
-				log.Printf("[MATCH BID] stale ask orderId=%s at price=%d — removing", queuedOrder.Id, bestAskPrice)
 				askOrders = append(askOrders[:i], askOrders[i+1:]...)
 				continue
 			}
@@ -247,17 +228,10 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 				TradeId:      tradeId,
 			})
 
-			log.Printf("[FILL] tradeId=%s price=%d qty=%d buyerId=%s sellerId=%s bidFilled=%d/%d askFilled=%d/%d",
-				tradeId, bestAskPrice, matchQuantity,
-				order.UserId, queuedOrder.UserId,
-				order.Filled, order.Quantity,
-				queuedOrder.Filled, queuedOrder.Quantity)
-
 			r.CurrentPrice = bestAskPrice
 			r.LastTradeId = tradeId
 
 			if queuedOrder.Filled == queuedOrder.Quantity {
-				log.Printf("[MATCH BID] ask fully filled orderId=%s — removing from level %d", queuedOrder.Id, bestAskPrice)
 				askOrders = append(askOrders[:i], askOrders[i+1:]...)
 			}
 		}
@@ -265,7 +239,6 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 		r.Asks[bestAskPrice] = askOrders
 
 		if len(askOrders) == 0 {
-			log.Printf("[MATCH BID] ask level %d exhausted — removing", bestAskPrice)
 			delete(r.Asks, bestAskPrice)
 			r.AskHeap.Pop()
 		}
@@ -276,12 +249,7 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 	}
 
 	if !queued && order.Filled < order.Quantity {
-		log.Printf("[MATCH BID] partial fill — queuing remainder orderId=%s filled=%d/%d at price=%d",
-			order.Id, order.Filled, order.Quantity, price)
 		r.addOrderToBids(order, price)
-	} else if order.Filled >= order.Quantity {
-		log.Printf("[MATCH BID COMPLETE] orderId=%s fully filled qty=%d executedQty=%d",
-			order.Id, order.Quantity, executedQty)
 	}
 
 	return fills, executedQty
@@ -292,23 +260,16 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 	var executedQty int = 0
 	var queued bool
 
-	log.Printf("[MATCH ASK START] orderId=%s userId=%s price=%d qty=%d bidLevels=%d",
-		order.Id, order.UserId, price, order.Quantity, r.BidHeap.Size())
-
 	for order.Filled < order.Quantity {
 		if r.BidHeap.Size() == 0 {
-			log.Printf("[MATCH ASK] no bids available — queuing orderId=%s at price=%d", order.Id, price)
 			r.addOrderToAsks(order, price)
 			queued = true
 			break
 		}
 
 		bestBidPrice := r.BidHeap.Peek()
-		log.Printf("[MATCH ASK] bestBid=%d incomingAsk=%d orderId=%s remaining=%d",
-			bestBidPrice, price, order.Id, order.Quantity-order.Filled)
 
 		if price > bestBidPrice {
-			log.Printf("[MATCH ASK] ask price %d > bestBid %d — queuing orderId=%s", price, bestBidPrice, order.Id)
 			r.addOrderToAsks(order, price)
 			queued = true
 			break
@@ -316,7 +277,6 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 
 		bidOrders := r.Bids[bestBidPrice]
 		if len(bidOrders) == 0 {
-			log.Printf("[MATCH ASK] empty bid level at price=%d — popping heap", bestBidPrice)
 			r.BidHeap.Pop()
 			continue
 		}
@@ -331,7 +291,6 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 			queuedOrder := bidOrders[i]
 
 			if queuedOrder.Filled >= queuedOrder.Quantity {
-				log.Printf("[MATCH ASK] stale bid orderId=%s at price=%d — removing", queuedOrder.Id, bestBidPrice)
 				bidOrders = append(bidOrders[:i], bidOrders[i+1:]...)
 				continue
 			}
@@ -359,17 +318,10 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 				TradeId:      tradeId,
 			})
 
-			log.Printf("[FILL] tradeId=%s price=%d qty=%d sellerId=%s buyerId=%s askFilled=%d/%d bidFilled=%d/%d",
-				tradeId, bestBidPrice, matchQuantity,
-				order.UserId, queuedOrder.UserId,
-				order.Filled, order.Quantity,
-				queuedOrder.Filled, queuedOrder.Quantity)
-
 			r.CurrentPrice = bestBidPrice
 			r.LastTradeId = tradeId
 
 			if queuedOrder.Filled == queuedOrder.Quantity {
-				log.Printf("[MATCH ASK] bid fully filled orderId=%s — removing from level %d", queuedOrder.Id, bestBidPrice)
 				bidOrders = append(bidOrders[:i], bidOrders[i+1:]...)
 			}
 		}
@@ -377,7 +329,6 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 		r.Bids[bestBidPrice] = bidOrders
 
 		if len(bidOrders) == 0 {
-			log.Printf("[MATCH ASK] bid level %d exhausted — removing", bestBidPrice)
 			delete(r.Bids, bestBidPrice)
 			r.BidHeap.Pop()
 		}
@@ -388,12 +339,7 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 	}
 
 	if !queued && order.Filled < order.Quantity {
-		log.Printf("[MATCH ASK] partial fill — queuing remainder orderId=%s filled=%d/%d at price=%d",
-			order.Id, order.Filled, order.Quantity, price)
 		r.addOrderToAsks(order, price)
-	} else if order.Filled >= order.Quantity {
-		log.Printf("[MATCH ASK COMPLETE] orderId=%s fully filled qty=%d executedQty=%d",
-			order.Id, order.Quantity, executedQty)
 	}
 
 	return fills, executedQty
@@ -404,8 +350,6 @@ func (r *OrderBook) GetDepth() (map[int][]*Order, map[int][]*Order) {
 }
 
 func (r *OrderBook) AddOrder(order Order, price int) ([]Fills, int, error) {
-	slog.Info("ORDER RECIEVED ::", order)
-
 	r.LastOrderId = order.Id
 	if order.Side == BUY {
 		fills, executedQty := r.matchBids(&order, price)
@@ -440,13 +384,11 @@ func (r *OrderBook) GetOpenOrders(userId string) []*Order {
 func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 	userOrders, ok := r.UserOrderMap[userId]
 	if !ok {
-		log.Printf("[CANCEL] userId=%s not found in UserOrderMap", userId)
 		return false
 	}
 
 	_, exists := userOrders[orderId]
 	if !exists {
-		log.Printf("[CANCEL] orderId=%s not found for userId=%s", orderId, userId)
 		return false
 	}
 
@@ -458,8 +400,6 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 					delete(r.Bids, price)
 				}
 				delete(userOrders, orderId)
-				log.Printf("[CANCEL] BID cancelled orderId=%s userId=%s price=%d filled=%d/%d remaining=%d rolled back",
-					orderId, userId, price, o.Filled, o.Quantity, o.Quantity-o.Filled)
 				return true
 			}
 		}
@@ -473,13 +413,10 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 					delete(r.Asks, price)
 				}
 				delete(userOrders, orderId)
-				log.Printf("[CANCEL] ASK cancelled orderId=%s userId=%s price=%d filled=%d/%d remaining=%d rolled back",
-					orderId, userId, price, o.Filled, o.Quantity, o.Quantity-o.Filled)
 				return true
 			}
 		}
 	}
 
-	log.Printf("[CANCEL] orderId=%s userId=%s found in UserOrderMap but not in Bids/Asks", orderId, userId)
 	return false
 }

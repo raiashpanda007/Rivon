@@ -41,6 +41,4 @@ func TradeRedisStreamPublisher(ctx context.Context, tradeType TradeStreamTypes, 
 		slog.Error("Unable to save the update on the stream", "error :: ", err)
 	}
 
-	slog.Info("Trade successfully recorded")
-
 }

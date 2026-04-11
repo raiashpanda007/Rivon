@@ -106,6 +106,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 	slog.Info("Batch consumer started", "batch_id", batchId, "stream_count", len(batch))
 
 	for {
+		slog.Info("consumer loop tick", "batch_id", batchId)
 		res, err := redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    "engine",
 			Consumer: fmt.Sprintf("engine-%d", batchId),
@@ -113,6 +114,8 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			Count:    10,
 			Block:    5 * time.Second,
 		}).Result()
+
+		slog.Info("XReadGroup returned", "batch_id", batchId, "err", err, "streams", len(res))
 
 		if err != nil {
 			if err == redis.Nil {
@@ -129,6 +132,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			continue
 		}
 
+		slog.Info("consumer batch read", "batch_id", batchId, "streams_with_messages", len(res))
 		for _, stream := range res {
 			for _, message := range stream.Messages {
 				msg, err := parseOrderMessage(message.Values, message.ID)

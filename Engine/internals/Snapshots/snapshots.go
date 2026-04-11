@@ -2,7 +2,6 @@ package snapshots
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"time"
@@ -119,7 +118,6 @@ const maxSnapshotsToKeep = 3
 func SaveSnapShot(marketId string, ob orderbooks.OrderBook) {
 	dir := fmt.Sprintf("../snapshots/%s", marketId)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Printf("Snapshot dir create error: %v", err)
 		return
 	}
 
@@ -127,18 +125,13 @@ func SaveSnapShot(marketId string, ob orderbooks.OrderBook) {
 
 	data, err := msgpack.Marshal(sd)
 	if err != nil {
-		log.Printf("Snapshot marshal error for market %s: %v", marketId, err)
 		return
 	}
 
 	fileName := fmt.Sprintf("%s/%d.mpac", dir, time.Now().Unix())
 	if err := os.WriteFile(fileName, data, 0644); err != nil {
-		log.Printf("Snapshot write error for market %s: %v", marketId, err)
 		return
 	}
-
-	log.Printf("Snapshot saved: %s (orders=%d bids=%d asks=%d)",
-		fileName, len(sd.Orders), len(sd.BidOrderIds), len(sd.AskOrderIds))
 
 	pruneSnapshots(dir)
 }
@@ -174,11 +167,7 @@ func pruneSnapshots(dir string) {
 
 	for i := 0; i < len(files)-maxSnapshotsToKeep; i++ {
 		path := fmt.Sprintf("%s/%s", dir, files[i].name)
-		if err := os.Remove(path); err != nil {
-			log.Printf("Snapshot prune error: %v", err)
-		} else {
-			log.Printf("Snapshot pruned: %s", path)
-		}
+		os.Remove(path)
 	}
 }
 
@@ -189,7 +178,6 @@ func ReadLastSnapShotForMarket(marketId string) (*orderbooks.OrderBook, bool) {
 
 	entries, err := os.ReadDir(parentDir)
 	if err != nil {
-		log.Printf("No snapshot directory for marketId %s: %v", marketId, err)
 		return nil, false
 	}
 
@@ -211,7 +199,6 @@ func ReadLastSnapShotForMarket(marketId string) (*orderbooks.OrderBook, bool) {
 	}
 
 	if latestFile == nil {
-		log.Printf("No snapshot files for marketId %s", marketId)
 		return nil, false
 	}
 
@@ -219,20 +206,14 @@ func ReadLastSnapShotForMarket(marketId string) (*orderbooks.OrderBook, bool) {
 
 	fileData, err := os.ReadFile(snapshotPath)
 	if err != nil {
-		log.Printf("Unable to read snapshot %s: %v", snapshotPath, err)
 		return nil, false
 	}
 
 	var sd snapshotData
 	if err := msgpack.Unmarshal(fileData, &sd); err != nil {
-		log.Printf("Invalid msgpack in %s: %v", snapshotPath, err)
 		return nil, false
 	}
 
 	ob := fromSnapshotData(sd)
-	log.Printf("Snapshot loaded: %s (orders=%d bids=%d asks=%d currentPrice=%d lastStreamId=%s)",
-		snapshotPath, len(sd.Orders), len(sd.BidOrderIds), len(sd.AskOrderIds),
-		sd.CurrentPrice, sd.LastStreamId)
-
 	return &ob, true
 }

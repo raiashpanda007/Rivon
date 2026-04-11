@@ -31,14 +31,8 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 	var OrderBook orderbooks.OrderBook
 	if snap, ok := snapshots.ReadLastSnapShotForMarket(marketId); ok {
 		OrderBook = *snap
-		slog.Info("Orderbook restored from snapshot",
-			"marketId", marketId,
-			"currentPrice", OrderBook.CurrentPrice,
-			"lastStreamId", OrderBook.LastStreamId,
-		)
 	} else {
 		OrderBook = orderbooks.NewOrderBook("", "", "", nil, nil, heap.NewMinHeap(), heap.NewMaxHeap(), 0)
-		slog.Info("Started fresh orderbook", "marketId", marketId)
 	}
 
 	replayStartId := OrderBook.LastStreamId
@@ -148,14 +142,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			}
 		}
 
-		slog.Info("Replay complete",
-			"marketId", marketId,
-			"silent", silentCount,
-			"normal", normalCount,
-			"lastStreamId", OrderBook.LastStreamId,
-		)
 	} else {
-		slog.Info("No replay messages found", "marketId", marketId)
 	}
 	// --- end replay ---
 
@@ -166,19 +153,12 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 		select {
 
 		case order := <-ch:
-
-			slog.Info("order received",
-				"orderId", order.OrderId,
-				"marketId", order.MarketId,
-				"streamID", order.StreamId,
-				"orderType", order.OrderType,
-			)
-
+			slog.Info("processor received", "orderId", order.OrderId)
+			t0 := time.Now()
 			OrderBook.LastStreamId = order.StreamId
 
 			if order.OrderType == "CANCEL_ORDER" {
-				cancelled := OrderBook.CancelOrder(order.OrderId, order.UserId)
-				slog.Info("cancel order processed", "orderId", order.OrderId, "cancelled", cancelled)
+				_ = OrderBook.CancelOrder(order.OrderId, order.UserId)
 
 				go tradestream.TradeRedisStreamPublisher(
 					ctx,
@@ -214,6 +194,24 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				slog.Error("Error adding order", "err", err)
 				continue
 			}
+			matchDur := time.Since(t0)
+
+			pubsubStart := time.Now()
+			orderId := order.OrderId
+			go func() {
+				pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
+					OrderId:          orderId,
+					Fills:            Fills,
+					ExecutedQuantity: executedQty,
+					MessageType:      pubsub.ORDER_UPDATE,
+				})
+				slog.Info("latency",
+					"orderId", orderId,
+					"matchUs", matchDur.Microseconds(),
+					"pubsubUs", time.Since(pubsubStart).Microseconds(),
+					"totalUs", time.Since(t0).Microseconds(),
+				)
+			}()
 
 			go tradestream.TradeRedisStreamPublisher(
 				ctx,
@@ -228,26 +226,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				tradeRedis,
 			)
 
-			go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
-				OrderId:          order.OrderId,
-				Fills:            Fills,
-				ExecutedQuantity: executedQty,
-				MessageType:      pubsub.ORDER_UPDATE,
-			})
-
-			bids, asks := OrderBook.GetDepth()
-			slog.Info("orderbook state",
-				"bidLevels", len(bids),
-				"askLevels", len(asks),
-				"currentPrice", OrderBook.CurrentPrice,
-				"lastOrderId", OrderBook.LastOrderId,
-				"lastTradeId", OrderBook.LastTradeId,
-				"lastStreamID", OrderBook.LastStreamId,
-			)
-
 		case <-timer.C:
-
-			slog.Info("Taking snapshot", "marketId", marketId)
 
 			snap := OrderBook.GetSnapshot()
 			go snapshots.SaveSnapShot(marketId, snap)
