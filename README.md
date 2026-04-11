@@ -211,6 +211,33 @@ snapshots/
 
 ---
 
+## Performance
+
+Load tested locally at **500 req/s sustained for 10 minutes** — placing live orders against the full stack (Server → Redis Stream → Engine → Orderbook → Trade Redis).
+
+<div align="center">
+  <img src="docs/screenshots/500r-s%20for%2010%20minutes.png" alt="500 req/s load test — 10 minutes" width="80%" />
+</div>
+
+| Metric | Result |
+|---|---|
+| Duration | 10 min |
+| Target rate | 500 req/s |
+| Actual rate (avg) | 500.8 req/s |
+| Total requests | 300,496 |
+| **2xx responses** | **300,496 (100%)** |
+| Errors / Timeouts | 0 |
+| Latency p50 | 3 ms |
+| Latency p99 | 33 ms |
+| Latency max | 91 ms |
+| Peak Redis stream length | 456,882 |
+
+Zero errors across 300k+ requests. The engine consumed the Redis stream backlog without message loss. All figures are from local hardware — not indicative of production numbers, but a solid correctness baseline under sustained load.
+
+Load tests were run with `bots/load-tester/` — a custom tool that uses [k6](https://k6.io/) for HTTP load generation and ioredis to monitor Redis stream backpressure in real time.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Notes |
@@ -292,11 +319,12 @@ Standalone Go binary. No HTTP. Reads from Order Redis, writes to Trade Redis.
 | File | Responsibility |
 |---|---|
 | `internals/Engine/engine.go` | Boot: load markets from DB, init streams, spawn goroutines |
-| `internals/markets/market.go` | Per-market goroutine — owns its orderbook for its lifetime |
+| `internals/markets/market.go` | Per-market goroutine — owns its orderbook; routes `PLACE_ORDER` and `CANCEL_ORDER` |
 | `internals/Orderbooks/orderbook.go` | Matching logic, partial fills, cancellation, depth queries |
 | `internals/utils/Heap.go` | MinHeap and MaxHeap — O(log n) insert/pop/peek — msgpack-serialisable |
 | `internals/Snapshots/snapshots.go` | Orderbook persistence — save/load/prune msgpack snapshots |
 | `internals/utils/TradeStream/` | Publishes fill events to Trade Redis Stream |
+| `internals/Channels/events.channels.go` | Buffered WebSocket event channel (`cap=100`) — wires engine events to WS layer |
 
 ### MailServer — `MailServer/`
 
@@ -416,8 +444,9 @@ Settlement currently happens synchronously after the server reads from Trade Red
 
 ## Roadmap
 
-- [ ] **WebSocket server** — live orderbook depth, trade tape, and price feed without polling
+- [~] **WebSocket server** — event channel infrastructure in place (`Engine/internals/Channels/`); live orderbook depth, trade tape, and price feed wiring in progress
 - [x] **Persistent orderbook** — msgpack snapshot save/restore; full orderbook state (orders, heaps, price) recovered on restart without hitting PostgreSQL
+- [x] **Order cancellation** — `CANCEL_ORDER` handled in market processor with pubsub notification and trade stream integration
 - [ ] **Market resolution** — settle positions on match outcome (win / draw / loss)
 - [ ] **In-play markets** — prices update as live match events occur (goals, red cards, penalties)
 - [ ] **Portfolio analytics** — P&L tracking, realized/unrealized breakdown, position history
