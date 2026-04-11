@@ -106,6 +106,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 	slog.Info("Batch consumer started", "batch_id", batchId, "stream_count", len(batch))
 
 	for {
+		slog.Info("consumer loop tick", "batch_id", batchId)
 		res, err := redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    "engine",
 			Consumer: fmt.Sprintf("engine-%d", batchId),
@@ -113,6 +114,8 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			Count:    10,
 			Block:    5 * time.Second,
 		}).Result()
+
+		slog.Info("XReadGroup returned", "batch_id", batchId, "err", err, "streams", len(res))
 
 		if err != nil {
 			if err == redis.Nil {
@@ -129,6 +132,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			continue
 		}
 
+		slog.Info("consumer batch read", "batch_id", batchId, "streams_with_messages", len(res))
 		for _, stream := range res {
 			for _, message := range stream.Messages {
 				msg, err := parseOrderMessage(message.Values, message.ID)
@@ -189,18 +193,18 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 		return err
 	}
 
-	slog.Info("Creating market channels", "count", len(allMarkets))
-
-	for _, market := range allMarkets {
-		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id)
-	}
-
 	slog.Info("Initializing Redis streams...", "count", len(allMarkets))
 	if err := redisStreamProducers(ctx, OrderRedis, allMarkets); err != nil {
 		slog.Error("Failed to initialize streams", "error", err)
 		return err
 	}
+
+	slog.Info("Creating market channels and starting processors", "count", len(allMarkets))
+	for _, market := range allMarkets {
+		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis)
+	}
+
 	slog.Info("All streams ready, starting consumers...")
 	startBatchedConsumers(ctx, OrderRedis, marketChannelMap, allMarkets)
 

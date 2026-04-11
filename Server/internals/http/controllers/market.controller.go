@@ -106,6 +106,41 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 		return
 	}
 
+	if order.OrderType == types.CANCEL_ORDER {
+		if order.OrderId == nil {
+			utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("orderId is required for CANCEL_ORDER")))
+			return
+		}
+
+		fill, err := r.svc.CancelOrder(req.Context(), userCred.Id, order.MarketId, *order.OrderId)
+		if err != nil {
+			slog.Error("Error cancelling order", "error", err)
+			utils.WriteJson(res, http.StatusInternalServerError, utils.GenerateError(utils.ErrInternal, errors.New("Cancel order processing interrupted")))
+			return
+		}
+
+		status := "cancelled"
+		message := "Order cancelled successfully"
+		if fill.Fills == nil && fill.ExecutedQuantity == 0 {
+			status = "cancel_pending"
+			message = "Cancel request accepted but engine did not respond in time"
+		}
+
+		utils.WriteJson(res, http.StatusOK, utils.Response[types.PlaceOrderResponse]{
+			Status:  200,
+			Heading: "Order Cancelled",
+			Message: message,
+			Data: types.PlaceOrderResponse{
+				OrderId:          fill.OrderId,
+				ExecutedQuantity: 0,
+				Fills:            nil,
+				Status:           status,
+				Message:          message,
+			},
+		})
+		return
+	}
+
 	if order.Quantity <= 0 || order.Price <= 0 || order.OrderType != "BUY" && order.OrderType != "SELL" {
 		slog.Error("Invalid order parameters", "order", order)
 		utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("Invalid order parameters")))

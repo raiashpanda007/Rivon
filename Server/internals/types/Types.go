@@ -193,8 +193,9 @@ type TeamDetails struct {
 type OrderTypes string
 
 const (
-	BUY_ORDER  OrderTypes = "BUY"
-	SELL_ORDER OrderTypes = "SELL"
+	BUY_ORDER    OrderTypes = "BUY"
+	SELL_ORDER   OrderTypes = "SELL"
+	CANCEL_ORDER OrderTypes = "CANCEL_ORDER"
 )
 
 type RedisStreamMessage struct {
@@ -210,14 +211,16 @@ type MarketOrder struct {
 	Price     int64      `json:"price"`
 	Quantity  int64      `json:"quantity"`
 	OrderType OrderTypes `json:"orderType"`
+	OrderId   *uuid.UUID `json:"orderId,omitempty"` // required for CANCEL_ORDER
 }
 
 type Fills struct {
-	Price       int    `json:"price"`
-	Quantity    int    `json:"quantity"`
-	TradeId     string `json:"tradeId"`
-	OtherUserId string `json:"otherUserId"`
-	OrderId     string `json:"orderId"`
+	Price        int    `json:"price"`
+	Quantity     int    `json:"quantity"`
+	TradeId      string `json:"tradeId"`
+	OtherUserId  string `json:"otherUserId"`
+	OtherOrderId string `json:"otherOrderId"`
+	OrderId      string `json:"orderId"`
 }
 
 type FillResult struct {
