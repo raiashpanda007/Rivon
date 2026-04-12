@@ -15,6 +15,7 @@ type Config struct {
 	TRADE_REDIS_URL       string
 	API_PUB_SUB_REDIS_URL string
 	PG_URL                string
+	WS_PUB_SUB_REDIS_URL  string
 }
 
 func mustEnv(key string) string {
@@ -45,5 +46,6 @@ func MustLoad() *Config {
 
 	cfg.PG_URL = mustEnv("PG_URL")
 
+	cfg.WS_PUB_SUB_REDIS_URL = mustEnv("WS_PUB_SUB_REDIS_URL")
 	return &cfg
 }

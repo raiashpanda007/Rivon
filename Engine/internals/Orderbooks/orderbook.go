@@ -38,6 +38,8 @@ type OrderBook struct {
 	Asks         map[int][]*Order
 	BidHeap      *heap.MaxHeap
 	AskHeap      *heap.MinHeap
+	BidDepth     map[int]int
+	AskDepth     map[int]int
 	UserOrderMap map[string]map[string]*Order
 	CurrentPrice int
 	LastTradeId  string
@@ -49,26 +51,27 @@ func NewOrderBook(lastTradeId, lastOrderId, lastStreamId string, bids map[int][]
 	bidsCopy := make(map[int][]*Order)
 	asksCopy := make(map[int][]*Order)
 	userOrderMap := make(map[string]map[string]*Order)
+	bidDepth := make(map[int]int)
+	askDepth := make(map[int]int)
 
 	for price, orders := range bids {
 		for i := range orders {
 			orderPtr := &orders[i]
-
 			bidsCopy[price] = append(bidsCopy[price], orderPtr)
+			bidDepth[price] += orderPtr.Quantity - orderPtr.Filled
 
 			if _, ok := userOrderMap[orderPtr.UserId]; !ok {
 				userOrderMap[orderPtr.UserId] = make(map[string]*Order)
 			}
 			userOrderMap[orderPtr.UserId][orderPtr.Id] = orderPtr
-
 		}
 	}
 
 	for price, orders := range asks {
 		for i := range orders {
 			orderPtr := &orders[i]
-
 			asksCopy[price] = append(asksCopy[price], orderPtr)
+			askDepth[price] += orderPtr.Quantity - orderPtr.Filled
 
 			if _, ok := userOrderMap[orderPtr.UserId]; !ok {
 				userOrderMap[orderPtr.UserId] = make(map[string]*Order)
@@ -82,6 +85,8 @@ func NewOrderBook(lastTradeId, lastOrderId, lastStreamId string, bids map[int][]
 		Asks:         asksCopy,
 		BidHeap:      bidHeap,
 		AskHeap:      askHeap,
+		BidDepth:     bidDepth,
+		AskDepth:     askDepth,
 		UserOrderMap: userOrderMap,
 		CurrentPrice: currentPrice,
 		LastTradeId:  lastTradeId,
@@ -128,11 +133,22 @@ func (r *OrderBook) GetSnapshot() OrderBook {
 		}
 	}
 
+	bidDepthCopy := make(map[int]int, len(r.BidDepth))
+	for price, qty := range r.BidDepth {
+		bidDepthCopy[price] = qty
+	}
+	askDepthCopy := make(map[int]int, len(r.AskDepth))
+	for price, qty := range r.AskDepth {
+		askDepthCopy[price] = qty
+	}
+
 	return OrderBook{
 		Bids:         bidsCopy,
 		Asks:         asksCopy,
 		BidHeap:      r.BidHeap.Clone(),
 		AskHeap:      r.AskHeap.Clone(),
+		BidDepth:     bidDepthCopy,
+		AskDepth:     askDepthCopy,
 		UserOrderMap: userOrderMapCopy,
 		CurrentPrice: r.CurrentPrice,
 		LastTradeId:  r.LastTradeId,
@@ -146,6 +162,7 @@ func (r *OrderBook) addOrderToBids(order *Order, price int) {
 		r.BidHeap.Insert(price)
 	}
 	r.Bids[price] = append(r.Bids[price], order)
+	r.BidDepth[price] += order.Quantity - order.Filled
 
 	if _, exists := r.UserOrderMap[order.UserId]; !exists {
 		r.UserOrderMap[order.UserId] = make(map[string]*Order)
@@ -158,6 +175,7 @@ func (r *OrderBook) addOrderToAsks(order *Order, price int) {
 		r.AskHeap.Insert(price)
 	}
 	r.Asks[price] = append(r.Asks[price], order)
+	r.AskDepth[price] += order.Quantity - order.Filled
 
 	if _, exists := r.UserOrderMap[order.UserId]; !exists {
 		r.UserOrderMap[order.UserId] = make(map[string]*Order)
@@ -217,6 +235,7 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 			queuedOrder.Filled += matchQuantity
 			executedQty += matchQuantity
 			matchedInThisLevel = true
+			r.AskDepth[bestAskPrice] -= matchQuantity
 
 			tradeId := uuid.NewString()
 			fills = append(fills, Fills{
@@ -240,6 +259,7 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 
 		if len(askOrders) == 0 {
 			delete(r.Asks, bestAskPrice)
+			delete(r.AskDepth, bestAskPrice)
 			r.AskHeap.Pop()
 		}
 
@@ -307,6 +327,7 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 			queuedOrder.Filled += matchQuantity
 			executedQty += matchQuantity
 			matchedInThisLevel = true
+			r.BidDepth[bestBidPrice] -= matchQuantity
 
 			tradeId := uuid.NewString()
 			fills = append(fills, Fills{
@@ -330,6 +351,7 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 
 		if len(bidOrders) == 0 {
 			delete(r.Bids, bestBidPrice)
+			delete(r.BidDepth, bestBidPrice)
 			r.BidHeap.Pop()
 		}
 
@@ -343,10 +365,6 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 	}
 
 	return fills, executedQty
-}
-
-func (r *OrderBook) GetDepth() (map[int][]*Order, map[int][]*Order) {
-	return r.Bids, r.Asks
 }
 
 func (r *OrderBook) AddOrder(order Order, price int) ([]Fills, int, error) {
@@ -387,34 +405,41 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 		return false
 	}
 
-	_, exists := userOrders[orderId]
+	order, exists := userOrders[orderId]
 	if !exists {
 		return false
 	}
 
-	for price, orders := range r.Bids {
-		for i, o := range orders {
-			if o.Id == orderId {
-				r.Bids[price] = append(r.Bids[price][:i], r.Bids[price][i+1:]...)
-				if len(r.Bids[price]) == 0 {
-					delete(r.Bids, price)
-				}
-				delete(userOrders, orderId)
-				return true
-			}
-		}
+	var bucket map[int][]*Order
+	if order.Side == BUY {
+		bucket = r.Bids
+	} else {
+		bucket = r.Asks
 	}
 
-	for price, orders := range r.Asks {
-		for i, o := range orders {
-			if o.Id == orderId {
-				r.Asks[price] = append(r.Asks[price][:i], r.Asks[price][i+1:]...)
-				if len(r.Asks[price]) == 0 {
-					delete(r.Asks, price)
+	var depthMap map[int]int
+	if order.Side == BUY {
+		depthMap = r.BidDepth
+	} else {
+		depthMap = r.AskDepth
+	}
+
+	orders := bucket[order.Price]
+	for i, o := range orders {
+		if o.Id == orderId {
+			bucket[order.Price] = append(orders[:i], orders[i+1:]...)
+			depthMap[order.Price] -= order.Quantity - order.Filled
+			if len(bucket[order.Price]) == 0 {
+				delete(bucket, order.Price)
+				delete(depthMap, order.Price)
+				if order.Side == BUY {
+					r.BidHeap.Remove(order.Price)
+				} else {
+					r.AskHeap.Remove(order.Price)
 				}
-				delete(userOrders, orderId)
-				return true
 			}
+			delete(userOrders, orderId)
+			return true
 		}
 	}
 

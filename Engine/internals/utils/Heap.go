@@ -84,6 +84,36 @@ func (h *Heap) Size() int {
 	return len(h.data)
 }
 
+func (h *Heap) Remove(val int) bool {
+	idx := -1
+	for i, v := range h.data {
+		if v == val {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return false
+	}
+
+	last := len(h.data) - 1
+	h.swap(idx, last)
+	h.data = h.data[:last]
+
+	if idx < len(h.data) {
+		// bubble up first, then down
+		i := idx
+		for i > 0 && h.less(h.data[i], h.data[h.parent(i)]) {
+			p := h.parent(i)
+			h.swap(i, p)
+			i = p
+		}
+		h.heapifyDown(i)
+	}
+
+	return true
+}
+
 type MinHeap struct {
 	Heap
 }

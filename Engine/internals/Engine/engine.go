@@ -13,6 +13,7 @@ import (
 	database "github.com/raiashpanda007/rivon/engine/internals/Database"
 	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
 	"github.com/raiashpanda007/rivon/engine/internals/markets"
+	wsmessagestypes "github.com/raiashpanda007/rivon/engine/internals/utils/WsMessagesTypes"
 )
 
 func parseOrderMessage(values map[string]interface{}, streamId string) (markets.OrderMessages, error) {
@@ -188,6 +189,10 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 	allMarkets, err := Db.GetAllMarkets()
 	var marketChannelMap = make(map[string]chan markets.OrderMessages)
 
+	var wsInMsgsChannelMap = make(map[string]chan wsmessagestypes.WSInMessageStruct)
+
+	var wsOutMsgsChannelMap = make(map[string]chan wsmessagestypes.WSOutMessageStruct)
+
 	if err != nil {
 		slog.Error("ERROR :: IN GETTING ALL MARKETS :: ", slog.Any("ERROR :: ", err))
 		return err
@@ -202,7 +207,16 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 	slog.Info("Creating market channels and starting processors", "count", len(allMarkets))
 	for _, market := range allMarkets {
 		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis)
+		// TODO: make sure to remove any types
+		wsInMsgsChannelMap[market.Id] = make(chan wsmessagestypes.WSInMessageStruct, 1000)
+		wsOutMsgsChannelMap[market.Id] = make(chan wsmessagestypes.WSOutMessageStruct, 1000)
+
+		err := pubsubSvc.WSIn().Subscribe(market.Id, wsInMsgsChannelMap[market.Id])
+		if err != nil {
+			slog.Error("failed to subscribe wsIn", "marketId", market.Id, "err", err)
+			return err
+		}
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis, wsInMsgsChannelMap[market.Id], wsOutMsgsChannelMap[market.Id])
 	}
 
 	slog.Info("All streams ready, starting consumers...")
