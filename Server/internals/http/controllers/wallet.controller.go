@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/raiashpanda007/rivon/internals/services"
 	"github.com/raiashpanda007/rivon/internals/services/auth"
@@ -20,8 +21,8 @@ type walletControllerUtils struct {
 	svc wallet.WalletServices
 }
 
-func InitWalletController(pgDb *pgxpool.Pool) WalletController {
-	walletSvc := services.InitWalletServices(pgDb)
+func InitWalletController(pgDb *pgxpool.Pool, userMapRedis *redis.Client) WalletController {
+	walletSvc := services.InitWalletServices(pgDb, userMapRedis)
 	return &walletControllerUtils{
 		svc: *walletSvc,
 	}

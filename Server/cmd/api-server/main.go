@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn, reg)
+	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn, reg, Db.UserMapRedis)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,

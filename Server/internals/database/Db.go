@@ -10,6 +10,7 @@ import (
 type DataBase struct {
 	PgDB                  *pgxpool.Pool
 	OtpRedis              *redis.Client
+	UserMapRedis          *redis.Client
 	OrderRedis            *redis.Client
 	ApiEnginerPubSubRedis *redis.Client
 }
@@ -57,11 +58,21 @@ func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string, apiEnginePu
 		return nil, err
 	}
 
+	UserMapRedis := redis.NewClient(&redis.Options{
+		Addr: otpRedisUrl,
+	})
+	_, err = UserMapRedis.Ping(ctx).Result()
+	if err != nil {
+		slog.Error("REDIS PING failed ", slog.Any("ERROR :: ", err))
+		return nil, err
+	}
+
 	return &DataBase{
 		PgDB:                  db,
 		OtpRedis:              OtpRedis,
 		OrderRedis:            OrderRedis,
 		ApiEnginerPubSubRedis: ApiEnginePubSubRedis,
+		UserMapRedis:          UserMapRedis,
 	}, nil
 
 }
