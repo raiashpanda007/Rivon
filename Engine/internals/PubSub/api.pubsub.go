@@ -13,8 +13,9 @@ import (
 type PubSubOrderMessageType string
 
 const (
-	ORDER_UPDATE PubSubOrderMessageType = "UPDATE_ORDER"
-	ORDER_CANCEL PubSubOrderMessageType = "CANCEL_ORDER"
+	ORDER_UPDATE   PubSubOrderMessageType = "UPDATE_ORDER"
+	ORDER_CANCEL   PubSubOrderMessageType = "CANCEL_ORDER"
+	ORDER_REJECTED PubSubOrderMessageType = "ORDER_REJECTED"
 )
 
 type PubSubOrderMessage struct {
@@ -22,6 +23,7 @@ type PubSubOrderMessage struct {
 	Fills            []orderbooks.Fills     `json:"fills"`
 	ExecutedQuantity int                    `json:"executedQty"`
 	MessageType      PubSubOrderMessageType `json:"type"`
+	Error            string                 `json:"error,omitempty"`
 }
 
 type ApiPubSubServices interface {
@@ -63,7 +65,7 @@ func (r *apiPubSubStruct) Subscribe() (any, error) {
 	sub := r.redisClient.Subscribe(r.ctx, "ORDERS")
 	_, err := sub.Receive(r.ctx)
 	if err != nil {
-		slog.Error("Unable to subscribe to api-engine ", err)
+		slog.Error("Unable to subscribe to api-engine", slog.Any("err", err))
 		return nil, err
 	}
 

@@ -36,6 +36,48 @@ func InitDb(pgUrl string) (*Database, error) {
 	}, nil
 }
 
+type AdminData struct {
+	Balance int
+	Assets  []AdminAsset
+}
+
+type AdminAsset struct {
+	MarketID string
+	Quantity int
+}
+
+func (r *Database) GetAdminData(adminID string) (*AdminData, error) {
+	ctx := context.Background()
+
+	var balance int64
+	err := r.pgdb.QueryRow(ctx,
+		"SELECT balance FROM wallets WHERE user_id = $1", adminID,
+	).Scan(&balance)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.pgdb.Query(ctx,
+		"SELECT market_id, quantity FROM assets WHERE user_id = $1", adminID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var assets []AdminAsset
+	for rows.Next() {
+		var marketID string
+		var qty int64
+		if err := rows.Scan(&marketID, &qty); err != nil {
+			return nil, err
+		}
+		assets = append(assets, AdminAsset{MarketID: marketID, Quantity: int(qty)})
+	}
+
+	return &AdminData{Balance: int(balance), Assets: assets}, nil
+}
+
 func (r *Database) GetAllMarkets() ([]Market, error) {
 	ctx := context.Background()
 	rows, err := r.pgdb.Query(ctx, "SELECT id, market_name FROM markets")

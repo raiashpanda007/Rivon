@@ -20,14 +20,19 @@ const (
 )
 
 type WSOutMessageStruct struct {
-	MessageType WSOutMessageType `json:"type"`
-	Payload     WSOutPayload     `json:"payload"`
-	UserId      string           `json:"userId"`
+	MessageType  WSOutMessageType `json:"type"`
+	Payload      WSOutPayload     `json:"payload"`
+	UserId       string           `json:"userId,omitempty"`
+	ConnectionId string           `json:"connectionId"`
 }
 
+// WSInMessageStruct carries an inbound WS message.
+// UserId is empty for unauthenticated connections; ConnectionId always
+// identifies the physical connection so the WS server can route the reply.
 type WSInMessageStruct struct {
-	MessageType WSInMessageType
-	UserId      string
+	MessageType  WSInMessageType
+	UserId       string
+	ConnectionId string
 }
 
 type OrderbookPayload struct {

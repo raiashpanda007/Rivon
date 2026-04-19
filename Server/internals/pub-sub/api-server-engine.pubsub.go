@@ -51,6 +51,7 @@ func (r *pubsub) Subscribe(ctx context.Context, stream string) error {
 				OrderId:          orderMsg.OrderId,
 				ExecutedQuantity: orderMsg.ExecutedQuantity,
 				Fills:            orderMsg.Fills,
+				Error:            orderMsg.Error,
 			})
 		case <-ctx.Done():
 			slog.Info("PubSub: context cancelled, stopping subscriber")

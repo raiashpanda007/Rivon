@@ -12,6 +12,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	database "github.com/raiashpanda007/rivon/engine/internals/Database"
 	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
+	usermap "github.com/raiashpanda007/rivon/engine/internals/UserMap"
 	"github.com/raiashpanda007/rivon/engine/internals/markets"
 	wsmessagestypes "github.com/raiashpanda007/rivon/engine/internals/utils/WsMessagesTypes"
 )
@@ -107,7 +108,6 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 	slog.Info("Batch consumer started", "batch_id", batchId, "stream_count", len(batch))
 
 	for {
-		slog.Info("consumer loop tick", "batch_id", batchId)
 		res, err := redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    "engine",
 			Consumer: fmt.Sprintf("engine-%d", batchId),
@@ -115,8 +115,6 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			Count:    10,
 			Block:    5 * time.Second,
 		}).Result()
-
-		slog.Info("XReadGroup returned", "batch_id", batchId, "err", err, "streams", len(res))
 
 		if err != nil {
 			if err == redis.Nil {
@@ -132,14 +130,12 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			time.Sleep(1 * time.Second)
 			continue
 		}
-
-		slog.Info("consumer batch read", "batch_id", batchId, "streams_with_messages", len(res))
 		for _, stream := range res {
 			for _, message := range stream.Messages {
 				msg, err := parseOrderMessage(message.Values, message.ID)
 
 				if err != nil {
-					slog.Error("Error in parsing the stream message :: ", err)
+					slog.Error("Error in parsing the stream message", slog.Any("err", err))
 					continue
 				}
 				ch, ok := marketMap[msg.MarketId]
@@ -185,8 +181,14 @@ func startBatchedConsumers(ctx context.Context, redisClient *redis.Client, marke
 	slog.Info("All batch consumers started", "total_batches", batchCount, "total_streams", len(allMarkets))
 }
 
-func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *database.Database, pubsubSvc pubsub.PubSubService) error {
+func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *database.Database, pubsubSvc pubsub.PubSubService, walletMapRedis *redis.Client) error {
+	userWallet, err := usermap.InitUserMap(walletMapRedis, ctx, Db)
+	if err != nil {
+		return err
+	}
+
 	allMarkets, err := Db.GetAllMarkets()
+
 	var marketChannelMap = make(map[string]chan markets.OrderMessages)
 
 	var wsInMsgsChannelMap = make(map[string]chan wsmessagestypes.WSInMessageStruct)
@@ -207,7 +209,7 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 	slog.Info("Creating market channels and starting processors", "count", len(allMarkets))
 	for _, market := range allMarkets {
 		marketChannelMap[market.Id] = make(chan markets.OrderMessages, 50)
-		// TODO: make sure to remove any types
+
 		wsInMsgsChannelMap[market.Id] = make(chan wsmessagestypes.WSInMessageStruct, 1000)
 		wsOutMsgsChannelMap[market.Id] = make(chan wsmessagestypes.WSOutMessageStruct, 1000)
 
@@ -216,7 +218,7 @@ func InitEngine(ctx context.Context, OrderRedis, TradeRedis *redis.Client, Db *d
 			slog.Error("failed to subscribe wsIn", "marketId", market.Id, "err", err)
 			return err
 		}
-		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis, wsInMsgsChannelMap[market.Id], wsOutMsgsChannelMap[market.Id])
+		go markets.StarMarketProcess(ctx, marketChannelMap[market.Id], TradeRedis, pubsubSvc, market.Id, OrderRedis, wsInMsgsChannelMap[market.Id], wsOutMsgsChannelMap[market.Id], userWallet)
 	}
 
 	slog.Info("All streams ready, starting consumers...")

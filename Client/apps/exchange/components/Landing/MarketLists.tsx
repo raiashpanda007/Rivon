@@ -4,7 +4,7 @@ import Loading from "../Loading"
 import ApiCaller, { RequestType } from "@workspace/api-caller"
 import { useEffect, useState } from "react"
 import { ArrowUpRight, ArrowDownRight } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface TeamDetails {
   id: string,
@@ -40,13 +40,13 @@ function StatusDot({ status }: { status: string }) {
 }
 
 function MarketTableRow({ market }: { market: MarketWithTeamDetails }) {
+  const router = useRouter()
   const priceChange = market.lastPrice - market.openPrice
   const priceChangePercent = market.openPrice === 0 ? 0 : (priceChange / market.openPrice) * 100
   const isPositive = priceChange >= 0
 
   return (
-    <Link href={`/markets/${market.id}`} className="contents">
-      <tr className="border-b border-border/60 hover:bg-muted/25 transition-colors cursor-pointer group">
+      <tr onClick={() => router.push(`/markets/${market.id}`)} className="border-b border-border/60 hover:bg-muted/25 transition-colors cursor-pointer group">
         <td className="px-3 py-2.5 align-middle">
           <div className="flex items-center gap-2.5">
             <img
@@ -102,7 +102,6 @@ function MarketTableRow({ market }: { market: MarketWithTeamDetails }) {
           </div>
         </td>
       </tr>
-    </Link>
   )
 }
 

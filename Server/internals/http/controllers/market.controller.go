@@ -155,17 +155,20 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 		return
 	}
 
+	if fill.Error != "" {
+		utils.WriteJson(res, http.StatusPaymentRequired, utils.GenerateError(utils.ErrBadRequest, errors.New(fill.Error)))
+		return
+	}
+
 	var status, message string
 	switch {
 	case fill.ExecutedQuantity > 0:
 		status = "filled"
 		message = "Order filled successfully"
 	case fill.Fills != nil:
-		// Engine responded with 0 executedQty but non-nil fills slice — order queued
 		status = "queued"
 		message = "Order queued in the order book"
 	default:
-		// Fills is nil — timeout path (engine did not respond within 5s)
 		status = "accepted"
 		message = "Order accepted but engine did not respond in time. Your order is queued and will be processed."
 	}

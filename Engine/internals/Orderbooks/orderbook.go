@@ -399,15 +399,15 @@ func (r *OrderBook) GetOpenOrders(userId string) []*Order {
 	return result
 }
 
-func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
+func (r *OrderBook) CancelOrder(orderId string, userId string) (*Order, bool) {
 	userOrders, ok := r.UserOrderMap[userId]
 	if !ok {
-		return false
+		return nil, false
 	}
 
 	order, exists := userOrders[orderId]
 	if !exists {
-		return false
+		return nil, false
 	}
 
 	var bucket map[int][]*Order
@@ -439,9 +439,9 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) bool {
 				}
 			}
 			delete(userOrders, orderId)
-			return true
+			return order, true
 		}
 	}
 
-	return false
+	return nil, false
 }

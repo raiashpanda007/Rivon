@@ -26,6 +26,9 @@ func InitWSOutPubSub(ctx context.Context, wsOutPubSubRedisClient *redis.Client) 
 }
 
 func (r *wsOutPubSubStruct) Publish(marketID string, msg wsmessagestypes.WSOutMessageStruct) error {
+	if r.redisClient == nil {
+		return nil
+	}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error("failed to marshal wsOut message", "marketId", marketID, "err", err)

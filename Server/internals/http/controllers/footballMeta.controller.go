@@ -16,6 +16,7 @@ type FootballMetaController interface {
 	GetCompetitions(res http.ResponseWriter, req *http.Request)
 	GetCompetitionTeamStandings(res http.ResponseWriter, req *http.Request)
 	GetAllSeasons(res http.ResponseWriter, req *http.Request)
+	GetKnockoutRounds(res http.ResponseWriter, req *http.Request)
 }
 type footballRepoSvc struct {
 	svc footballmeta.FootballMetaServices
@@ -102,6 +103,46 @@ func (r *footballRepoSvc) GetCompetitionTeamStandings(res http.ResponseWriter, r
 		Status:  200,
 	})
 
+}
+
+func (r *footballRepoSvc) GetKnockoutRounds(res http.ResponseWriter, req *http.Request) {
+	leagueIdStr := req.URL.Query().Get("leagueId")
+	seasonIdStr := req.URL.Query().Get("seasonId")
+
+	var leagueId *uuid.UUID = nil
+	var seasonId *uuid.UUID = nil
+
+	if leagueIdStr != "" {
+		id, err := uuid.Parse(leagueIdStr)
+		if err != nil {
+			utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("Invalid league Id")))
+			return
+		}
+		leagueId = &id
+	}
+
+	if seasonIdStr != "" {
+		id, err := uuid.Parse(seasonIdStr)
+		if err != nil {
+			utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("Invalid season Id")))
+			return
+		}
+		seasonId = &id
+	}
+
+	result, errType, err := r.svc.GetKnockoutData(req.Context(), leagueId, seasonId)
+	if err != nil {
+		slog.Error("Error getting knockout rounds", "error", err)
+		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
+		return
+	}
+
+	utils.WriteJson(res, http.StatusOK, utils.Response[[]types.KnockoutStageData]{
+		Heading: "OK",
+		Message: "Knockout Data Fetched",
+		Data:    result,
+		Status:  200,
+	})
 }
 
 func (r *footballRepoSvc) GetAllSeasons(res http.ResponseWriter, req *http.Request) {

@@ -31,3 +31,9 @@ services:
     restart: unless-stopped
     ports:
       - "6382:6379"
+
+  ws-pubsub-redis:
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6383:6379"

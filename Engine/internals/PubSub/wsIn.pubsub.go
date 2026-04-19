@@ -27,6 +27,9 @@ func InitWSInPubSub(ctx context.Context, wsInPubSubRedisClient *redis.Client) WS
 }
 
 func (r *wsInPubSubStruct) Subscribe(marketID string, wsInChan chan wsmessagestypes.WSInMessageStruct) error {
+	if r.redisClient == nil {
+		return nil
+	}
 	pubsub := r.redisClient.Subscribe(r.ctx, "MARKET_"+marketID)
 
 	_, err := pubsub.Receive(r.ctx)
