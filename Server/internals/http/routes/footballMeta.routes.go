@@ -12,5 +12,6 @@ func NewFootBallMetaRoutes(cfg *config.Config, pgDb *pgxpool.Pool, Controllers c
 	router.Get("/standings", Controllers.GetCompetitionTeamStandings)
 	router.Get("/competitions", Controllers.GetCompetitions)
 	router.Get("/seasons", Controllers.GetAllSeasons)
+	router.Get("/knockout", Controllers.GetKnockoutRounds)
 	return router
 }

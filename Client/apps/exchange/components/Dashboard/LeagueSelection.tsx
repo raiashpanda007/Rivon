@@ -27,7 +27,6 @@ interface AllCompetitions {
   name: string
 }
 
-
 interface Season {
   id: string;
   period: { start: Date, end: Date }
@@ -37,6 +36,7 @@ interface Season {
   createdAt: Date;
   updatedAt: Date
 }
+
 interface LeagueSeason {
   leagueId: string;
   seasonId: string;
@@ -62,10 +62,59 @@ interface Standings {
   goalsFor: number;
 }
 
+interface KnockoutLeg {
+  homeTeamId: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: string;
+}
+
+interface KnockoutTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  tla: string;
+  emblem: string;
+}
+
+interface KnockoutMatchup {
+  team1: KnockoutTeam;
+  team2: KnockoutTeam;
+  leg1: KnockoutLeg | null;
+  leg2: KnockoutLeg | null;
+  team1AggGoals: number | null;
+  team2AggGoals: number | null;
+  winnerTeamId: string | null;
+}
+
+interface KnockoutStageData {
+  stage: string;
+  matchups: KnockoutMatchup[];
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  KNOCKOUT_ROUND_PLAY_OFFS: "Playoffs",
+  LAST_16: "Round of 16",
+  QUARTER_FINALS: "Quarter Finals",
+  SEMI_FINALS: "Semi Finals",
+  FINAL: "Final",
+}
+
+const STAGE_ORDER = [
+  "KNOCKOUT_ROUND_PLAY_OFFS",
+  "LAST_16",
+  "QUARTER_FINALS",
+  "SEMI_FINALS",
+  "FINAL",
+]
+
+function stageLabel(stage: string) {
+  return STAGE_LABELS[stage] ?? stage.replace(/_/g, " ")
+}
+
 const getLeagueMessage = (c: AllCompetitions) => {
   const name = c.name.toLowerCase();
   const code = c.code;
-
 
   if (code === 'PD' || name.includes('la liga'))
     return "Favourite of the creator 🤍⚪ Real Madrid bias is real. Pure VAMOS league. Drama guaranteed."
@@ -85,9 +134,207 @@ const getLeagueMessage = (c: AllCompetitions) => {
   if (code === 'CL' || name.includes('champions'))
     return "Best nights in football 🌌 Champions League hits different. Pure legacy, pure madness."
 
-
   return "Enjoy the beautiful game of football!";
 }
+
+// ─── Knockout bracket components ─────────────────────────────────────────────
+
+function ScoreCell({ score }: { score: number | null }) {
+  return (
+    <span className="w-6 text-center font-mono font-bold text-sm">
+      {score !== null ? score : "–"}
+    </span>
+  )
+}
+
+function MatchupCard({ matchup }: { matchup: KnockoutMatchup }) {
+  const isTeam1Winner = matchup.winnerTeamId === matchup.team1.id
+  const isTeam2Winner = matchup.winnerTeamId === matchup.team2.id
+  const isFinal = matchup.leg2 === null
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-background/40 backdrop-blur-sm overflow-hidden shadow-lg min-w-[220px]">
+      {/* Team 1 row */}
+      <div className={`flex items-center gap-2 px-3 py-2.5 transition-colors ${isTeam1Winner ? "bg-orange-500/15 border-l-2 border-orange-500" : ""}`}>
+        <div className="w-7 h-7 flex-shrink-0 bg-white/10 rounded-full p-0.5 flex items-center justify-center">
+          <img src={matchup.team1.emblem} alt={matchup.team1.name} className="w-full h-full object-contain" />
+        </div>
+        <span className={`flex-1 text-xs font-semibold truncate ${isTeam1Winner ? "text-orange-400" : "text-foreground"}`}>
+          {matchup.team1.shortName || matchup.team1.name}
+        </span>
+        <div className="flex items-center gap-1">
+          {!isFinal && (
+            <>
+              <ScoreCell score={matchup.leg1?.homeScore ?? null} />
+              <ScoreCell score={matchup.leg2?.awayScore ?? null} />
+            </>
+          )}
+          {isFinal && <ScoreCell score={matchup.leg1?.homeScore ?? null} />}
+          {matchup.team1AggGoals !== null && (
+            <span className={`ml-1 w-6 text-center text-xs font-black rounded ${isTeam1Winner ? "text-orange-400" : "text-muted-foreground"}`}>
+              {matchup.team1AggGoals}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Divider with leg labels */}
+      <div className="flex items-center bg-background/20 border-y border-white/5 px-3 py-0.5">
+        <span className="flex-1" />
+        {!isFinal && (
+          <div className="flex items-center gap-1 text-[9px] text-muted-foreground font-mono">
+            <span className="w-6 text-center">L1</span>
+            <span className="w-6 text-center">L2</span>
+            <span className="ml-1 w-6 text-center">AGG</span>
+          </div>
+        )}
+        {isFinal && (
+          <span className="text-[9px] text-muted-foreground font-mono">FT · AGG</span>
+        )}
+      </div>
+
+      {/* Team 2 row */}
+      <div className={`flex items-center gap-2 px-3 py-2.5 transition-colors ${isTeam2Winner ? "bg-orange-500/15 border-l-2 border-orange-500" : ""}`}>
+        <div className="w-7 h-7 flex-shrink-0 bg-white/10 rounded-full p-0.5 flex items-center justify-center">
+          <img src={matchup.team2.emblem} alt={matchup.team2.name} className="w-full h-full object-contain" />
+        </div>
+        <span className={`flex-1 text-xs font-semibold truncate ${isTeam2Winner ? "text-orange-400" : "text-foreground"}`}>
+          {matchup.team2.shortName || matchup.team2.name}
+        </span>
+        <div className="flex items-center gap-1">
+          {!isFinal && (
+            <>
+              <ScoreCell score={matchup.leg1?.awayScore ?? null} />
+              <ScoreCell score={matchup.leg2?.homeScore ?? null} />
+            </>
+          )}
+          {isFinal && <ScoreCell score={matchup.leg1?.awayScore ?? null} />}
+          {matchup.team2AggGoals !== null && (
+            <span className={`ml-1 w-6 text-center text-xs font-black rounded ${isTeam2Winner ? "text-orange-400" : "text-muted-foreground"}`}>
+              {matchup.team2AggGoals}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function KnockoutBracket({ data }: { data: KnockoutStageData[] }) {
+  // Sort stages by canonical order
+  const sorted = [...data].sort((a, b) => {
+    const oi = STAGE_ORDER.indexOf(a.stage)
+    const oj = STAGE_ORDER.indexOf(b.stage)
+    return (oi === -1 ? 99 : oi) - (oj === -1 ? 99 : oj)
+  })
+
+  if (sorted.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-20 gap-4"
+      >
+        <div className="px-2 py-1 rounded-sm bg-orange-500/10 border border-orange-500/20 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-orange-500/50" />
+          <span className="font-mono text-[10px] font-bold text-orange-500/70 tracking-widest">AWAITING_KICKOFF</span>
+        </div>
+        <p className="text-muted-foreground text-sm font-mono">Knockout stage has not started yet.</p>
+        <p className="text-muted-foreground/50 text-xs font-mono">Check back after the league phase concludes.</p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <div className="w-full overflow-x-auto pb-4">
+      {/* Desktop: horizontal bracket flow */}
+      <div className="hidden md:flex items-start gap-0 min-w-max">
+        {sorted.map((stage, stageIdx) => (
+          <div key={stage.stage} className="flex items-start">
+            {/* Stage column */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: stageIdx * 0.12, duration: 0.4 }}
+              className="flex flex-col gap-2"
+            >
+              {/* Stage label */}
+              <div className="flex items-center justify-center mb-3">
+                <div className="px-2 py-1 rounded-sm bg-orange-500/10 border border-orange-500/20 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                  <span className="font-mono text-[10px] font-bold text-orange-500 tracking-widest uppercase">
+                    {stageLabel(stage.stage)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Matchup cards spaced to align with next round */}
+              <div className="flex flex-col gap-6">
+                {stage.matchups.map((matchup, mIdx) => (
+                  <motion.div
+                    key={`${matchup.team1.id}-${matchup.team2.id}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: stageIdx * 0.12 + mIdx * 0.05 }}
+                  >
+                    <MatchupCard matchup={matchup} />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Connector lines between rounds */}
+            {stageIdx < sorted.length - 1 && (
+              <div className="flex items-center self-stretch mx-1 mt-14">
+                <div className="flex items-center gap-0">
+                  <div className="w-4 h-px bg-orange-500/30" />
+                  <svg width="8" height="8" viewBox="0 0 8 8" className="text-orange-500/40">
+                    <path d="M0 4 L8 4 M5 1 L8 4 L5 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile: vertical stacked stages */}
+      <div className="flex md:hidden flex-col gap-8">
+        {sorted.map((stage, stageIdx) => (
+          <motion.div
+            key={stage.stage}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: stageIdx * 0.1 }}
+            className="flex flex-col gap-3"
+          >
+            <div className="flex items-center gap-2">
+              <div className="px-2 py-1 rounded-sm bg-orange-500/10 border border-orange-500/20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="font-mono text-[10px] font-bold text-orange-500 tracking-widest uppercase">
+                  {stageLabel(stage.stage)}
+                </span>
+              </div>
+              {stageIdx < sorted.length - 1 && (
+                <div className="flex-1 flex items-center gap-1 text-orange-500/30">
+                  <div className="flex-1 h-px bg-orange-500/20" />
+                  <span className="text-xs">↓</span>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {stage.matchups.map((matchup) => (
+                <MatchupCard key={`${matchup.team1.id}-${matchup.team2.id}`} matchup={matchup} />
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 function LeagueSelection() {
   const competitionMap = new Map<string, AllCompetitions>()
@@ -97,6 +344,11 @@ function LeagueSelection() {
   const [listSeasons, setListSeasons] = useState<{ season: Season[], leagueSeason: LeagueSeason[] }>();
   const [selectedSeason, setSelectedSeason] = useState<Season>()
   const [standings, setStandings] = useState<Standings[]>([]);
+  const [viewMode, setViewMode] = useState<"league" | "knockout">("league");
+  const [knockoutData, setKnockoutData] = useState<KnockoutStageData[]>([]);
+
+  const isCL = selectedCompetition != null &&
+    (selectedCompetition.code === 'CL' || selectedCompetition.name.toLowerCase().includes('champions'))
 
   async function GetAllCompetitions() {
     setLoading(true)
@@ -139,16 +391,14 @@ function LeagueSelection() {
       );
 
       const seasons = listSeasons.season.filter((season) => targetSeasonIds.has(String(season.id)));
-
       seasonLeagueMatch.set(String(competition.id), seasons);
     })
 
     return seasonLeagueMatch;
   }
 
-
   async function GetTeamStandings() {
-    setStandings([]); // Reset standings before fetching
+    setStandings([]);
     if (!selectedCompetition || !selectedSeason) return;
 
     const stands = await ApiCaller<{}, Standings[]>({
@@ -162,21 +412,35 @@ function LeagueSelection() {
 
     if (stands.ok) {
       setStandings(stands.response.data);
-    } else {
-      console.error("Failed to fetch standings");
     }
   }
 
-  const items = listCompetitions.map((val) => {
-    return { label: val.name, value: val }
-  })
+  async function GetKnockoutData() {
+    setKnockoutData([]);
+    if (!selectedCompetition || !selectedSeason) return;
+
+    const result = await ApiCaller<{}, KnockoutStageData[]>({
+      paths: ["api", "rivon", "football-meta", "knockout"],
+      requestType: RequestType.GET,
+      queryParams: {
+        leagueId: selectedCompetition.id,
+        seasonId: selectedSeason.id,
+      }
+    });
+
+    if (result.ok && result.response.data) {
+      setKnockoutData(result.response.data);
+    }
+  }
+
+  const items = listCompetitions.map((val) => ({ label: val.name, value: val }))
 
   const SeasonLeagueMap = useMemo(SetLeagueSeasonMap, [listSeasons, listCompetitions]);
 
-  const seasonItems: { label: string, value: Season }[] = (SeasonLeagueMap.get(String(selectedCompetition?.id ?? "")) ?? []).map((val: Season) => {
-    return { label: val.season, value: val }
-  })
-
+  const seasonItems: { label: string, value: Season }[] =
+    (SeasonLeagueMap.get(String(selectedCompetition?.id ?? "")) ?? []).map((val: Season) => ({
+      label: val.season, value: val
+    }))
 
   useEffect(() => {
     Promise.all([GetAllCompetitions(), GetAllSeasons()]);
@@ -185,11 +449,15 @@ function LeagueSelection() {
   useEffect(() => {
     if (selectedCompetition) {
       setSelectedSeason(undefined);
+      setViewMode("league");
+      setKnockoutData([]);
     }
   }, [selectedCompetition, SeasonLeagueMap])
 
   useEffect(() => {
-    GetTeamStandings()
+    GetTeamStandings();
+    if (isCL) GetKnockoutData();
+    else setKnockoutData([]);
   }, [selectedSeason])
 
   return (
@@ -251,7 +519,7 @@ function LeagueSelection() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="mb-8 p-6  border border-orange-500/20 rounded-2xl backdrop-blur-md text-center shadow-lg transform hover:scale-[1.01] transition-transform duration-300"
+                className="mb-8 p-6 border border-orange-500/20 rounded-2xl backdrop-blur-md text-center shadow-lg transform hover:scale-[1.01] transition-transform duration-300"
               >
                 <p className="text-lg md:text-xl text-orange-600 dark:text-orange-400 italic font-serif">
                   "{getLeagueMessage(selectedCompetition)}"
@@ -264,7 +532,6 @@ function LeagueSelection() {
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                     <svg className="w-32 h-32 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg>
                   </div>
-
                   <div className="relative z-10 flex flex-col items-center">
                     <div className="h-32 w-32 rounded-full p-4 bg-white shadow-lg flex items-center justify-center mb-6 ring-4 ring-orange-100 dark:ring-orange-900/30">
                       <img className="w-full h-full object-contain" src={selectedCompetition.emblem} alt={selectedCompetition.name} />
@@ -273,7 +540,6 @@ function LeagueSelection() {
                     <span className="inline-block px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full text-sm font-bold mb-6">
                       {selectedCompetition.code}
                     </span>
-
                     <div className="w-full grid grid-cols-2 gap-4 mt-2">
                       <div className="flex flex-col items-center p-3 bg-background/40 rounded-xl border border-white/10">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Org ID</span>
@@ -291,14 +557,12 @@ function LeagueSelection() {
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                     <svg className="w-32 h-32 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.59-2.12L6 17l6.5-6.5L6 4l.41-.88C9.59 4.25 12 7.12 12 12c-2.88 0-5.29-1.93-6.41-4.88z" /></svg>
                   </div>
-
                   <div className="relative z-10 flex flex-col items-center">
                     <h3 className="text-xl font-bold text-orange-600 dark:text-orange-400 mb-6 uppercase tracking-widest border-b-2 border-orange-500/20 pb-2">Location</h3>
                     <div className="h-24 w-24 rounded-full p-2 bg-white shadow-md flex items-center justify-center mb-4 ring-2 ring-orange-50 dark:ring-orange-900/20">
                       <img className="w-full h-full object-contain" src={selectedCompetition.countryEmblem} alt={selectedCompetition.countryName} />
                     </div>
                     <h2 className="text-3xl font-bold text-foreground mb-4 text-center">{selectedCompetition.countryName}</h2>
-
                     <div className="w-full p-4 bg-background/40 rounded-2xl border border-white/10 flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-orange-600">
@@ -323,6 +587,8 @@ function LeagueSelection() {
                   </div>
                 </div>
               </div>
+
+              {/* Season selector */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -334,7 +600,6 @@ function LeagueSelection() {
                   </h2>
                   <p className="text-muted-foreground font-medium text-lg">Choose a season to view matches and stats</p>
                 </div>
-
                 <div className="flex justify-center">
                   <div className="w-full max-w-sm">
                     <Select onValueChange={(e) => setSelectedSeason(JSON.parse(e))}>
@@ -359,17 +624,64 @@ function LeagueSelection() {
                 </div>
               </motion.div>
 
+              {/* View mode toggle — only for CL once a season is picked */}
               <AnimatePresence>
-                {standings.length > 0 && selectedSeason && (
+                {isCL && selectedSeason && (
+                  <motion.div
+                    key="cl-toggle"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex justify-center mb-8"
+                  >
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-background/60 backdrop-blur-sm border border-orange-500/20 shadow-md">
+                      <button
+                        onClick={() => setViewMode("league")}
+                        className={`
+                          flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200
+                          ${viewMode === "league"
+                            ? "bg-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.4)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                          }
+                        `}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                        League Phase
+                      </button>
+                      <button
+                        onClick={() => setViewMode("knockout")}
+                        className={`
+                          flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200
+                          ${viewMode === "knockout"
+                            ? "bg-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.4)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                          }
+                        `}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Knockout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── League Phase table ── */}
+              <AnimatePresence>
+                {standings.length > 0 && selectedSeason && viewMode === "league" && (
                   <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: 0.6, type: "spring", bounce: 0.3 }}
-                    className="w-full mt-12 mb-20"
+                    className="w-full mt-4 mb-20"
                   >
                     <div className="relative overflow-hidden rounded-3xl bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl">
-                      {/* Decorative elements */}
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50"></div>
                       <div className="absolute -top-24 -right-24 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl p-3"></div>
                       <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl p-3"></div>
@@ -381,13 +693,15 @@ function LeagueSelection() {
                               <img src={selectedCompetition.emblem} alt="logo" className="w-full h-full object-contain" />
                             </div>
                             <div>
-                              <h3 className="text-2xl font-black text-foreground tracking-tight">League Table</h3>
+                              <h3 className="text-2xl font-black text-foreground tracking-tight">
+                                {isCL ? "League Phase Table" : "League Table"}
+                              </h3>
                               <p className="text-sm text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">{selectedSeason.season} Season</p>
                             </div>
                           </div>
 
                           <div className="flex gap-2 text-xs font-bold bg-background/50 p-1.5 rounded-lg border border-white/10 backdrop-blur-sm flex-wrap justify-end">
-                            {(selectedCompetition && (selectedCompetition.code === 'CL' || selectedCompetition.name.toLowerCase().includes('champions'))) ? (
+                            {isCL ? (
                               <>
                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
                                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -436,30 +750,19 @@ function LeagueSelection() {
                             </thead>
                             <tbody className="divide-y divide-border/40">
                               {standings.sort((a, b) => a.position - b.position).map((team, index) => {
-                                // Add some dummy form data since API doesn't provide it in the interface
                                 const form = ['W', 'D', 'L', 'W', 'W'].sort(() => 0.5 - Math.random()).slice(0, 5);
                                 const points = (team.won * 3) + team.draw;
 
-                                // Logic for styling based on competition type
-                                const isCL = selectedCompetition && (selectedCompetition.code === 'CL' || selectedCompetition.name.toLowerCase().includes('champions'));
-
                                 let isTop = false;
-                                let isMid = false; // For CL play-offs
+                                let isMid = false;
                                 let isBottom = false;
 
                                 if (isCL) {
-                                  // Champions League Rules
-                                  // Top 8 qualifies
                                   if (index < 8) isTop = true;
-                                  // 9-24 play-offs
                                   else if (index >= 8 && index < 24) isMid = true;
-                                  // Last 8 disqualifies (user request)
                                   else if (index >= standings.length - 8) isBottom = true;
                                 } else {
-                                  // Standard League Rules
-                                  // Top 4 qualifies
                                   if (index < 4) isTop = true;
-                                  // Bottom 3 relegated
                                   if (index >= standings.length - 3) isBottom = true;
                                 }
 
@@ -470,7 +773,7 @@ function LeagueSelection() {
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: index * 0.03 }}
                                     className={`
-                                      group transition-colors hover:bg-orange-500/5 
+                                      group transition-colors hover:bg-orange-500/5
                                       ${isTop ? 'bg-gradient-to-r from-green-500/5 to-transparent' : ''}
                                       ${isMid ? 'bg-gradient-to-r from-yellow-500/5 to-transparent' : ''}
                                       ${isBottom ? 'bg-gradient-to-r from-red-500/5 to-transparent' : ''}
@@ -523,7 +826,7 @@ function LeagueSelection() {
                                       <div className="flex items-center justify-center gap-1">
                                         {form.map((res, i) => (
                                           <span key={i} className={`
-                                            w-1.5 h-1.5 rounded-full 
+                                            w-1.5 h-1.5 rounded-full
                                             ${res === 'W' ? 'bg-green-500' : res === 'D' ? 'bg-gray-400' : 'bg-red-500'}
                                           `}></span>
                                         ))}
@@ -545,6 +848,53 @@ function LeagueSelection() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* ── Knockout bracket ── */}
+              <AnimatePresence>
+                {isCL && selectedSeason && viewMode === "knockout" && (
+                  <motion.div
+                    key="knockout-bracket"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.5, type: "spring", bounce: 0.2 }}
+                    className="w-full mt-4 mb-20"
+                  >
+                    <div className="relative overflow-hidden rounded-3xl bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50" />
+                      <div className="absolute -top-24 -right-24 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
+                      <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl" />
+
+                      <div className="p-6 md:p-8 relative z-10">
+                        <div className="flex items-center gap-4 mb-8">
+                          <div className="h-14 w-14 p-2 bg-white rounded-xl shadow-lg flex items-center justify-center ring-2 ring-orange-100 dark:ring-orange-900/30">
+                            <img src={selectedCompetition.emblem} alt="logo" className="w-full h-full object-contain" />
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-black text-foreground tracking-tight">Knockout Bracket</h3>
+                            <p className="text-sm text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">{selectedSeason.season} Season</p>
+                          </div>
+                        </div>
+
+                        <KnockoutBracket data={knockoutData} />
+
+                        <div className="mt-6 flex justify-between items-center text-xs text-muted-foreground px-2">
+                          <p>Last updated: {new Date().toLocaleDateString()}</p>
+                          <div className="hidden md:flex items-center gap-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-3 h-3 rounded-sm bg-orange-500/20 border border-orange-500/40" />
+                              <span>Winner</span>
+                            </div>
+                            <span>·</span>
+                            <span>L1 = Leg 1 · L2 = Leg 2 · AGG = Aggregate</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
             </motion.div>
           )}
         </AnimatePresence>

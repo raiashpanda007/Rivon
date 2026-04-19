@@ -16,9 +16,9 @@ import (
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
-func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub, reg *registry.Registry) chi.Router {
+func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub, reg *registry.Registry, UserMapRedis *redis.Client) chi.Router {
 	router := chi.NewRouter()
-	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn, reg)
+	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn, reg, UserMapRedis)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:3000",

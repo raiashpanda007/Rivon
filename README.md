@@ -116,13 +116,16 @@ Four independent services connected through Redis Streams:
 [2] Server validates request, writes to ORDERS_<market_id> Redis Stream
 [3] Engine consumer group picks up message (batch read, 5s block timeout)
 [4] Message dispatched to per-market goroutine channel (non-blocking)
-[5] Orderbook.AddOrder() — price-time priority match against resting orders
+[5] UserWalletMap validates balance/positions in-memory (zero-latency, no DB round-trip)
+[6] Orderbook.AddOrder() — price-time priority match against resting orders
+      ├── Self-match check: skip if queued order.UserId == incoming order.UserId
       ├── Full fill   → remove matched orders, emit fills
       ├── Partial fill → emit partial fills, queue remainder at limit price
       └── No match    → queue order at limit price, no fills
-[6] Fill events published to Trade Redis Stream
-[7] Server settlement worker reads fills, updates wallet + positions
-[8] WebSocket broadcast → live orderbook depth and trade feed to clients
+[7] Fill events published to Trade Redis Stream
+[8] Engine publishes depth/trade events to WS PubSub Redis (per-market channel)
+[9] Server settlement worker reads fills, updates wallet + positions
+[10] WebSocket broadcast → live orderbook depth and trade feed to clients
 ```
 
 Every step from [3] onwards is fully asynchronous. The matching path itself is lock-free per market — one goroutine owns one orderbook, no mutexes required.
@@ -191,6 +194,22 @@ Market Goroutine  (1 per market)
 
 The fully isolated container-per-market model remains the right long-term architecture for exchange-grade horizontal scaling. The goroutine model is a deliberate, cost-conscious choice that achieves the same isolation guarantee within a single process at near-zero infrastructure overhead.
 
+### In-Memory User Wallet Map
+
+Each market goroutine validates orders against an in-memory `UserWalletMap` before passing them to the orderbook. This eliminates the database round-trip from the hot path — balance checks and position lookups are O(1) map reads.
+
+The map is populated eagerly from PostgreSQL at engine startup (and lazily on first order for any user not yet loaded). It tracks:
+
+- `balance` / `locked_balance` — available funds vs. funds held in open buy orders
+- `qty` / `locked_qty` (per market) — position size vs. quantity locked in open sell orders
+- Admin escrow fields — separate ledger for the CCP admin's own pending commitments, distinct from user-facing positions
+
+`locked_balance` and `locked_qty` are updated synchronously as orders are placed and cancelled, so the engine never relies on the settlement worker's async writes for validation correctness. On startup, `locked_balance` and `locked_qty` for the admin account are fetched directly from the `wallets` and `assets` tables to reconcile any fills processed while the engine was down.
+
+### Self-Match Prevention
+
+The orderbook skips fills where the resting and incoming orders share the same `UserId`. This prevents a user from trading against their own orders — an important correctness guarantee that also avoids wash-trade artefacts in the price feed.
+
 ### Orderbook Snapshots
 
 Each market goroutine periodically persists its orderbook state to disk as a msgpack file under `snapshots/<market_id>/`. On startup, the engine reads the latest snapshot and fully restores the live orderbook — including all resting orders and the bid/ask heap state — before processing any new messages.
@@ -211,6 +230,33 @@ snapshots/
 
 ---
 
+## Performance
+
+Load tested locally at **500 req/s sustained for 10 minutes** — placing live orders against the full stack (Server → Redis Stream → Engine → Orderbook → Trade Redis).
+
+<div align="center">
+  <img src="docs/screenshots/500r-s%20for%2010%20minutes.png" alt="500 req/s load test — 10 minutes" width="80%" />
+</div>
+
+| Metric | Result |
+|---|---|
+| Duration | 10 min |
+| Target rate | 500 req/s |
+| Actual rate (avg) | 500.8 req/s |
+| Total requests | 300,496 |
+| **2xx responses** | **300,496 (100%)** |
+| Errors / Timeouts | 0 |
+| Latency p50 | 3 ms |
+| Latency p99 | 33 ms |
+| Latency max | 91 ms |
+| Peak Redis stream length | 456,882 |
+
+Zero errors across 300k+ requests. The engine consumed the Redis stream backlog without message loss. All figures are from local hardware — not indicative of production numbers, but a solid correctness baseline under sustained load.
+
+Load tests were run with `bots/load-tester/` — a custom tool that uses [k6](https://k6.io/) for HTTP load generation and ioredis to monitor Redis stream backpressure in real time.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Notes |
@@ -221,8 +267,8 @@ snapshots/
 | DB Driver | pgx v5 | Connection pool, prepared statements |
 | Matching Engine | Go, custom heaps | Goroutine-per-market, zero shared state |
 | Message Bus | Redis Streams | Consumer groups, at-least-once delivery |
-| Cache | Redis × 3 | OTP / Orders / Trades — isolated by role |
-| Database | PostgreSQL | 3 migrations via golang-migrate |
+| Cache | Redis × 4 | OTP / Orders / Trades / WS PubSub — isolated by role |
+| Database | PostgreSQL | 6 migrations via golang-migrate |
 | Auth | JWT + OTP + OAuth | HTTP-only cookies, Google + GitHub |
 | Email | Bun, Express v5, Nodemailer | Input validated with Zod |
 | CI/CD | GitHub Actions | Build + migrate on every push to `dev`/`main` |
@@ -235,6 +281,7 @@ snapshots/
 | OTP Redis | 6379 | TTL-based key/value, high write churn, no persistence needed |
 | Order Redis | 6380 | Persistent streams, consumer group offsets, append-only workload |
 | Trade Redis | 6381 | Fill delivery from engine to server, short-lived consumer |
+| WS PubSub Redis | 6383 | Real-time orderbook/trade event fanout to WebSocket clients |
 
 Keeping these separate prevents a high-throughput stream append from adding latency to OTP lookups, and lets each instance carry only the persistence and memory configuration it actually needs.
 
@@ -249,7 +296,7 @@ Next.js 16 monorepo powered by Turborepo and Bun. Three independent apps share a
 | App | Purpose |
 |---|---|
 | `base` | Auth, user dashboard, portfolio overview, league browser |
-| `exchange` | Live trading terminal — orderbook depth, price chart, order entry |
+| `exchange` | Live trading terminal — orderbook depth, price chart, order entry; knockout bracket viewer in league dashboard |
 | `bet` | Match predictions, position management, settlement history |
 
 **Shared packages:**
@@ -292,11 +339,17 @@ Standalone Go binary. No HTTP. Reads from Order Redis, writes to Trade Redis.
 | File | Responsibility |
 |---|---|
 | `internals/Engine/engine.go` | Boot: load markets from DB, init streams, spawn goroutines |
-| `internals/markets/market.go` | Per-market goroutine — owns its orderbook for its lifetime |
-| `internals/Orderbooks/orderbook.go` | Matching logic, partial fills, cancellation, depth queries |
+| `internals/markets/market.go` | Per-market goroutine — owns its orderbook; routes `PLACE_ORDER` and `CANCEL_ORDER` |
+| `internals/Orderbooks/orderbook.go` | Matching logic, partial fills, cancellation, depth queries; self-match prevention |
 | `internals/utils/Heap.go` | MinHeap and MaxHeap — O(log n) insert/pop/peek — msgpack-serialisable |
 | `internals/Snapshots/snapshots.go` | Orderbook persistence — save/load/prune msgpack snapshots |
 | `internals/utils/TradeStream/` | Publishes fill events to Trade Redis Stream |
+| `internals/Channels/events.channels.go` | Buffered WebSocket event channel (`cap=100`) — wires engine events to WS layer |
+| `internals/PubSub/wsIn.pubsub.go` | Subscribes per-market WS PubSub topic; feeds inbound WS messages to market channels |
+| `internals/PubSub/wsOut.pubsub.go` | Publishes outbound engine events (fills, depth) to WS PubSub per market |
+| `internals/UserMap/wallet.user.map.go` | In-memory user balance + position map; zero-latency order validation; admin escrow tracking |
+| `internals/Redis/userWalletMap.redis.go` | Redis client for persisting UserWalletMap snapshots |
+| `internals/utils/WsMessagesTypes/` | Shared WS message structs (WSInMessageStruct, WSOutMessageStruct) |
 
 ### MailServer — `MailServer/`
 
@@ -323,6 +376,7 @@ This brings up:
 - OTP Redis on `:6379`
 - Order Redis on `:6380`
 - Trade Redis on `:6381`
+- WS PubSub Redis on `:6383`
 
 ### 2. Configure Environment
 
@@ -416,8 +470,9 @@ Settlement currently happens synchronously after the server reads from Trade Red
 
 ## Roadmap
 
-- [ ] **WebSocket server** — live orderbook depth, trade tape, and price feed without polling
+- [~] **WebSocket server** — per-market WS PubSub channels wired (`wsIn`/`wsOut`); dedicated WS PubSub Redis on `:6383`; fill and depth event publishing in place; client-side connection and subscription layer in progress
 - [x] **Persistent orderbook** — msgpack snapshot save/restore; full orderbook state (orders, heaps, price) recovered on restart without hitting PostgreSQL
+- [x] **Order cancellation** — `CANCEL_ORDER` handled in market processor with pubsub notification and trade stream integration
 - [ ] **Market resolution** — settle positions on match outcome (win / draw / loss)
 - [ ] **In-play markets** — prices update as live match events occur (goals, red cards, penalties)
 - [ ] **Portfolio analytics** — P&L tracking, realized/unrealized breakdown, position history

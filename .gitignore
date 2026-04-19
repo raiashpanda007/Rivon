@@ -2,3 +2,6 @@ snapshots/**/*.mpac
 node_modules/
 .env
 CONSUMER.md
+WRITING_NOTES.md
+walletMap.md
+Todo.txt

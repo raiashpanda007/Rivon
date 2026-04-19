@@ -11,9 +11,49 @@ import (
 	pubsub "github.com/raiashpanda007/rivon/engine/internals/PubSub"
 	redisStream "github.com/raiashpanda007/rivon/engine/internals/Redis"
 	snapshots "github.com/raiashpanda007/rivon/engine/internals/Snapshots"
+	usermap "github.com/raiashpanda007/rivon/engine/internals/UserMap"
 	heap "github.com/raiashpanda007/rivon/engine/internals/utils"
 	tradestream "github.com/raiashpanda007/rivon/engine/internals/utils/TradeStream"
+	wsmessagestypes "github.com/raiashpanda007/rivon/engine/internals/utils/WsMessagesTypes"
 )
+
+// copyDepth returns a shallow copy of a depth map safe to hand off to a goroutine.
+func copyDepth(depth map[int]int) map[int]int {
+	cp := make(map[int]int, len(depth))
+	for k, v := range depth {
+		cp[k] = v
+	}
+	return cp
+}
+
+// toPublicFills strips user identifiers from fills before broadcasting.
+func toPublicFills(fills []orderbooks.Fills) []wsmessagestypes.PublicFill {
+	result := make([]wsmessagestypes.PublicFill, len(fills))
+	for i, f := range fills {
+		result[i] = wsmessagestypes.PublicFill{
+			Price:    f.Price,
+			Quantity: f.Quantity,
+			TradeId:  f.TradeId,
+		}
+	}
+	return result
+}
+
+// pushOrderbookUpdate sends current depth + fills to wsOutChannel without blocking the caller.
+func pushOrderbookUpdate(wsOutChannel chan wsmessagestypes.WSOutMessageStruct, bidDepth, askDepth map[int]int, currentPrice int, fills []orderbooks.Fills) {
+	publicFills := toPublicFills(fills)
+	go func() {
+		wsOutChannel <- wsmessagestypes.WSOutMessageStruct{
+			MessageType: wsmessagestypes.ORDERBOOK_UPDATE,
+			Payload: wsmessagestypes.OrderbookUpdatePayload{
+				BidDepth:     bidDepth,
+				AskDepth:     askDepth,
+				CurrentPrice: currentPrice,
+				Fills:        publicFills,
+			},
+		}
+	}()
+}
 
 type OrderMessages struct {
 	OrderId   string
@@ -25,7 +65,22 @@ type OrderMessages struct {
 	StreamId  string
 }
 
-func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client, pubsubSvc pubsub.PubSubService, marketId string, orderRedis *redis.Client) {
+func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *redis.Client, pubsubSvc pubsub.PubSubService, marketId string, orderRedis *redis.Client, wsInChannel chan wsmessagestypes.WSInMessageStruct, wsOutChannel chan wsmessagestypes.WSOutMessageStruct, userWallet *usermap.UserWallet) {
+
+	// wsOut publisher — reads from wsOutChannel and publishes to Redis PubSub WS_OUT_<marketId>
+	// in a continuous loop so the WS server always receives the latest orderbook state.
+	go func() {
+		for {
+			select {
+			case msg := <-wsOutChannel:
+				if err := pubsubSvc.WSOut().Publish(marketId, msg); err != nil {
+					slog.Error("wsOut publish failed", "marketId", marketId, "err", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	// Restore orderbook from latest snapshot, or start fresh.
 	var OrderBook orderbooks.OrderBook
@@ -40,10 +95,6 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 		replayStartId = "0"
 	}
 
-	// --- Crash-recovery replay ---
-	// Find the orderId of the last trade that was actually executed for this market.
-	// This is our "pivot": everything up to it was already processed (suppress re-publish),
-	// everything after it is new (publish trades + pubsub normally).
 	pivotOrderId, hasPivot := redisStream.ReadLastTradeOrderIdForMarket(ctx, tradeRedis, marketId)
 
 	replayMsgs, replayErr := redisStream.ReplayOrderStream(ctx, orderRedis, "ORDERS_"+marketId, replayStartId)
@@ -158,7 +209,21 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			OrderBook.LastStreamId = order.StreamId
 
 			if order.OrderType == "CANCEL_ORDER" {
-				_ = OrderBook.CancelOrder(order.OrderId, order.UserId)
+				cancelledOrder, cancelled := OrderBook.CancelOrder(order.OrderId, order.UserId)
+				if cancelled && cancelledOrder != nil {
+					remaining := cancelledOrder.Quantity - cancelledOrder.Filled
+					go func(o *orderbooks.Order, rem int) {
+						if o.Side == orderbooks.BUY {
+							if err := userWallet.UnlockMoney(o.UserId, rem*o.Price); err != nil {
+								slog.Error("UnlockMoney failed on cancel", "orderId", o.Id, "err", err)
+							}
+						} else {
+							if err := userWallet.UnlockAsset(o.UserId, marketId, rem); err != nil {
+								slog.Error("UnlockAsset failed on cancel", "orderId", o.Id, "err", err)
+							}
+						}
+					}(cancelledOrder, remaining)
+				}
 
 				go tradestream.TradeRedisStreamPublisher(
 					ctx,
@@ -176,7 +241,30 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 					OrderId:     order.OrderId,
 					MessageType: pubsub.ORDER_CANCEL,
 				})
+				pushOrderbookUpdate(wsOutChannel, copyDepth(OrderBook.BidDepth), copyDepth(OrderBook.AskDepth), OrderBook.CurrentPrice, nil)
 				continue
+			}
+
+			if order.OrderType == string(orderbooks.BUY) {
+				if err := userWallet.LockMoney(order.UserId, order.Price*order.Quantity); err != nil {
+					slog.Warn("LockMoney failed, rejecting order", "orderId", order.OrderId, "err", err)
+					go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
+						OrderId:     order.OrderId,
+						MessageType: pubsub.ORDER_REJECTED,
+						Error:       err.Error(),
+					})
+					continue
+				}
+			} else {
+				if err := userWallet.LockAsset(order.UserId, order.MarketId, order.Quantity); err != nil {
+					slog.Warn("LockAsset failed, rejecting order", "orderId", order.OrderId, "err", err)
+					go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
+						OrderId:     order.OrderId,
+						MessageType: pubsub.ORDER_REJECTED,
+						Error:       err.Error(),
+					})
+					continue
+				}
 			}
 
 			inputOrder := orderbooks.Order{
@@ -195,6 +283,23 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				continue
 			}
 			matchDur := time.Since(t0)
+
+			if len(Fills) > 0 {
+				side := orderbooks.OrderSide(order.OrderType)
+				go func(fills []orderbooks.Fills, userId string, side orderbooks.OrderSide) {
+					for _, f := range fills {
+						var buyerId, sellerId string
+						if side == orderbooks.BUY {
+							buyerId, sellerId = userId, f.OtherUserId
+						} else {
+							buyerId, sellerId = f.OtherUserId, userId
+						}
+						if err := userWallet.ExecuteTrade(buyerId, sellerId, marketId, f.Quantity, f.Price); err != nil {
+							slog.Error("ExecuteTrade failed", "tradeId", f.TradeId, "err", err)
+						}
+					}
+				}(Fills, order.UserId, side)
+			}
 
 			pubsubStart := time.Now()
 			orderId := order.OrderId
@@ -225,6 +330,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				order.Price,
 				tradeRedis,
 			)
+			pushOrderbookUpdate(wsOutChannel, copyDepth(OrderBook.BidDepth), copyDepth(OrderBook.AskDepth), OrderBook.CurrentPrice, Fills)
 
 		case <-timer.C:
 
@@ -232,6 +338,47 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			go snapshots.SaveSnapShot(marketId, snap)
 
 			timer.Reset(baseInterval + time.Duration(rand.Intn(10))*time.Second)
+
+		case wsInMsg := <-wsInChannel:
+			switch wsInMsg.MessageType {
+			case wsmessagestypes.ORDERBOOK_SUBSCIRBE:
+				bidDepth := copyDepth(OrderBook.BidDepth)
+				askDepth := copyDepth(OrderBook.AskDepth)
+				currentPrice := OrderBook.CurrentPrice
+				connId := wsInMsg.ConnectionId
+				userId := wsInMsg.UserId
+				go func() {
+					wsOutChannel <- wsmessagestypes.WSOutMessageStruct{
+						MessageType: wsmessagestypes.ORDERBOOK_DATA,
+						Payload: wsmessagestypes.OrderbookPayload{
+							BidDepth:     bidDepth,
+							AskDepth:     askDepth,
+							CurrentPrice: currentPrice,
+						},
+						UserId:       userId,
+						ConnectionId: connId,
+					}
+				}()
+
+			case wsmessagestypes.DEPTH_SUBSCRIBE:
+				bidDepth := copyDepth(OrderBook.BidDepth)
+				askDepth := copyDepth(OrderBook.AskDepth)
+				connId := wsInMsg.ConnectionId
+				userId := wsInMsg.UserId
+				go func() {
+					wsOutChannel <- wsmessagestypes.WSOutMessageStruct{
+						MessageType: wsmessagestypes.DEPTH_DATA,
+						Payload: wsmessagestypes.DepthPayload{
+							BidDepth: bidDepth,
+							AskDepth: askDepth,
+						},
+						UserId:       userId,
+						ConnectionId: connId,
+					}
+				}()
+			}
+
 		}
+
 	}
 }

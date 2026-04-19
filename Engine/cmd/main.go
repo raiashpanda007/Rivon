@@ -35,12 +35,32 @@ func main() {
 	apiPubSubRedisClient, err := redis.Init_Api_PubSub_Redis(cfg.API_PUB_SUB_REDIS_URL)
 
 	if err != nil {
-		slog.Error("ERROR :: IN CONNECTION TO TRADE REDIS :: ", slog.Any("ERROR :: ", err))
+		slog.Error("ERROR :: IN CONNECTION TO API PUB SUB REDIS :: ", slog.Any("ERROR :: ", err))
 	}
 
-	pubsubSvc := pubsub.InitPubSub(ctx, apiPubSubRedisClient)
+	wsInPubSubRedisClient, err := redis.Init_WS_PubSub_Redis(cfg.WS_PUB_SUB_REDIS_URL)
 
-	engine.InitEngine(ctx, orderRedis, tradeRedis, db, pubsubSvc)
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO WS IN PUB SUB REDIS :: ", slog.Any("ERROR :: ", err))
+	}
+
+	wsOutPubSubRedisClient, err := redis.Init_WS_PubSub_Redis(cfg.WS_PUB_SUB_REDIS_URL)
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO WS OUT PUB SUB REDIS :: ", slog.Any("ERROR :: ", err))
+	}
+
+	userWalletMapRedis, err := redis.InitWalletMapRedisClient(ctx, cfg.WALLET_USER_MAP)
+	if err != nil {
+		slog.Error("ERROR :: IN CONNECTION TO WALLET MAP REDIS :: ", slog.Any("ERROR :: ", err))
+	}
+
+	pubsubSvc := pubsub.InitPubSub(ctx, apiPubSubRedisClient, wsInPubSubRedisClient, wsOutPubSubRedisClient)
+
+	if err := engine.InitEngine(ctx, orderRedis, tradeRedis, db, pubsubSvc, userWalletMapRedis); err != nil {
+		slog.Error("ERROR :: FAILED TO INITIALIZE ENGINE :: ", slog.Any("ERROR :: ", err))
+		cancel()
+		return
+	}
 	slog.Info("Trade engine running... Press Ctrl+C to stop")
 
 	select {}

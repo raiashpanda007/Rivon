@@ -13,15 +13,14 @@ func InitAuthServices(pgDb *pgxpool.Pool, otpRedis *redis.Client, jwtSecret stri
 	userRepo := auth.NewUserRepo(pgDb)
 	tokenServices := auth.NewTokenServices(jwtSecret, pgDb)
 	otpServices := auth.NewOTPServices(otpRedis, mailServerURL)
-
 	authService := auth.NewAuthServices(userRepo, tokenServices, otpServices)
 	return &authService
 
 }
 
-func InitWalletServices(pgDb *pgxpool.Pool) *wallet.WalletServices {
+func InitWalletServices(pgDb *pgxpool.Pool, userMapRedis *redis.Client) *wallet.WalletServices {
 	walletRepo := wallet.NewWalletRepo(pgDb)
-	walletServices := wallet.NewWalletServices(walletRepo)
+	walletServices := wallet.NewWalletServices(walletRepo, userMapRedis)
 	return &walletServices
 }
 

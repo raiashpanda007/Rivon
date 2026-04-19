@@ -227,6 +227,7 @@ type FillResult struct {
 	OrderId          string  `json:"orderId"`
 	ExecutedQuantity int     `json:"executedQty"`
 	Fills            []Fills `json:"fills"`
+	Error            string  `json:"error,omitempty"`
 }
 
 // PubSubOrderMessage mirrors the Engine's JSON payload on channel "ORDERS".
@@ -238,6 +239,93 @@ type PubSubOrderMessage struct {
 	Fills            []Fills `json:"fills"`
 	ExecutedQuantity int     `json:"executedQty"`
 	MessageType      string  `json:"type"`
+	Error            string  `json:"error,omitempty"`
+}
+
+// MatchesResponse is the football-data.org /v4/competitions/{id}/matches response.
+type MatchesResponse struct {
+	Competition Competition  `json:"competition"`
+	Season      Season       `json:"season"`
+	Matches     []MatchEntry `json:"matches"`
+}
+
+type MatchEntry struct {
+	ID       int        `json:"id"`
+	Stage    string     `json:"stage"`
+	Status   string     `json:"status"` // SCHEDULED, IN_PLAY, PAUSED, FINISHED, POSTPONED, CANCELLED, TIMED
+	HomeTeam MatchTeam  `json:"homeTeam"`
+	AwayTeam MatchTeam  `json:"awayTeam"`
+	Score    MatchScore `json:"score"`
+}
+
+type MatchTeam struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	ShortName string `json:"shortName"`
+	TLA       string `json:"tla"`
+	Crest     string `json:"crest"`
+}
+
+type MatchScore struct {
+	Winner   *string   `json:"winner"` // HOME_TEAM, AWAY_TEAM, DRAW, nil
+	Duration string    `json:"duration"`
+	FullTime MatchHalf `json:"fullTime"`
+	HalfTime MatchHalf `json:"halfTime"`
+}
+
+type MatchHalf struct {
+	Home *int `json:"home"`
+	Away *int `json:"away"`
+}
+
+// KnockoutMatchRow is one raw row from the knockout_matches table (with team joins).
+type KnockoutMatchRow struct {
+	ID                 uuid.UUID `json:"id"`
+	FootballOrgMatchID int       `json:"footballOrgMatchId"`
+	Stage              string    `json:"stage"`
+	HomeTeamID         uuid.UUID `json:"homeTeamId"`
+	AwayTeamID         uuid.UUID `json:"awayTeamId"`
+	HomeTeamName       string    `json:"homeTeamName"`
+	HomeTeamShortName  string    `json:"homeTeamShortName"`
+	HomeTeamTLA        string    `json:"homeTeamTLA"`
+	HomeTeamEmblem     string    `json:"homeTeamEmblem"`
+	AwayTeamName       string    `json:"awayTeamName"`
+	AwayTeamShortName  string    `json:"awayTeamShortName"`
+	AwayTeamTLA        string    `json:"awayTeamTLA"`
+	AwayTeamEmblem     string    `json:"awayTeamEmblem"`
+	HomeScore          *int      `json:"homeScore"`
+	AwayScore          *int      `json:"awayScore"`
+	Status             string    `json:"status"`
+}
+
+type KnockoutTeamInfo struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	ShortName string    `json:"shortName"`
+	TLA       string    `json:"tla"`
+	Emblem    string    `json:"emblem"`
+}
+
+type KnockoutLeg struct {
+	HomeTeamID uuid.UUID `json:"homeTeamId"`
+	HomeScore  *int      `json:"homeScore"`
+	AwayScore  *int      `json:"awayScore"`
+	Status     string    `json:"status"`
+}
+
+type KnockoutMatchup struct {
+	Team1         KnockoutTeamInfo `json:"team1"`
+	Team2         KnockoutTeamInfo `json:"team2"`
+	Leg1          *KnockoutLeg     `json:"leg1"`
+	Leg2          *KnockoutLeg     `json:"leg2"`
+	Team1AggGoals *int             `json:"team1AggGoals"`
+	Team2AggGoals *int             `json:"team2AggGoals"`
+	WinnerTeamID  *uuid.UUID       `json:"winnerTeamId"`
+}
+
+type KnockoutStageData struct {
+	Stage    string            `json:"stage"`
+	Matchups []KnockoutMatchup `json:"matchups"`
 }
 
 type PlaceOrderResponse struct {

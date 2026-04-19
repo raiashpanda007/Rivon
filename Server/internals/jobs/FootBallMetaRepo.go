@@ -26,6 +26,9 @@ type FootBallMetaRepo interface {
 	GetAllCompetitionMetaData(ctx context.Context) ([]types.GetCompetitionMetaData, error)
 	GetAllSeasons(ctx context.Context) ([]types.GetSeason, error)
 	GetAllLeagueSeasons(ctx context.Context) ([]types.GetLeagueSeason, error)
+	GetTeamByFootballOrgId(ctx context.Context, footballOrgId int) (*uuid.UUID, error)
+	SaveKnockoutMatch(ctx context.Context, leagueId uuid.UUID, seasonId uuid.UUID, footballOrgMatchId int, stage string, homeTeamId uuid.UUID, awayTeamId uuid.UUID, homeScore *int, awayScore *int, status string) error
+	GetKnockoutMatches(ctx context.Context, leagueId *uuid.UUID, seasonId *uuid.UUID) ([]types.KnockoutMatchRow, error)
 }
 
 type footballMetaRepoServices struct {
@@ -522,6 +525,111 @@ func (r *footballMetaRepoServices) GetAllSeasons(ctx context.Context) ([]types.G
 
 	return allSeasons, nil
 
+}
+
+func (r *footballMetaRepoServices) GetTeamByFootballOrgId(ctx context.Context, footballOrgId int) (*uuid.UUID, error) {
+	var teamId uuid.UUID
+	err := r.db.QueryRow(ctx, `SELECT id FROM teams WHERE football_org_id = $1`, footballOrgId).Scan(&teamId)
+	if err != nil {
+		return nil, err
+	}
+	return &teamId, nil
+}
+
+func (r *footballMetaRepoServices) SaveKnockoutMatch(ctx context.Context, leagueId uuid.UUID, seasonId uuid.UUID, footballOrgMatchId int, stage string, homeTeamId uuid.UUID, awayTeamId uuid.UUID, homeScore *int, awayScore *int, status string) error {
+	query := `
+	INSERT INTO knockout_matches (
+		id, league_id, season_id, football_org_match_id,
+		stage, home_team_id, away_team_id, home_score, away_score, status
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	ON CONFLICT (football_org_match_id)
+	DO UPDATE SET
+		home_score = EXCLUDED.home_score,
+		away_score = EXCLUDED.away_score,
+		status = EXCLUDED.status,
+		updated_at = NOW();
+	`
+	_, err := r.db.Exec(ctx, query,
+		uuid.New(), leagueId, seasonId, footballOrgMatchId,
+		stage, homeTeamId, awayTeamId, homeScore, awayScore, status,
+	)
+	if err != nil {
+		slog.Error("Error saving knockout match", "matchId", footballOrgMatchId, "error", err)
+	}
+	return err
+}
+
+func (r *footballMetaRepoServices) GetKnockoutMatches(ctx context.Context, leagueId *uuid.UUID, seasonId *uuid.UUID) ([]types.KnockoutMatchRow, error) {
+	var matches []types.KnockoutMatchRow
+
+	query := `
+	SELECT
+		km.id,
+		km.football_org_match_id,
+		km.stage,
+		km.home_team_id,
+		km.away_team_id,
+		ht.name,
+		ht.short_name,
+		ht.tla,
+		ht.emblem,
+		at.name,
+		at.short_name,
+		at.tla,
+		at.emblem,
+		km.home_score,
+		km.away_score,
+		km.status
+	FROM knockout_matches km
+	JOIN teams ht ON ht.id = km.home_team_id
+	JOIN teams at ON at.id = km.away_team_id
+	WHERE
+		($1::uuid IS NULL OR km.league_id = $1)
+		AND ($2::uuid IS NULL OR km.season_id = $2)
+	ORDER BY km.stage, km.created_at ASC;
+	`
+
+	rows, err := r.db.Query(ctx, query, leagueId, seasonId)
+	if err != nil {
+		slog.Error("Error querying knockout matches", "error", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var m types.KnockoutMatchRow
+		err := rows.Scan(
+			&m.ID,
+			&m.FootballOrgMatchID,
+			&m.Stage,
+			&m.HomeTeamID,
+			&m.AwayTeamID,
+			&m.HomeTeamName,
+			&m.HomeTeamShortName,
+			&m.HomeTeamTLA,
+			&m.HomeTeamEmblem,
+			&m.AwayTeamName,
+			&m.AwayTeamShortName,
+			&m.AwayTeamTLA,
+			&m.AwayTeamEmblem,
+			&m.HomeScore,
+			&m.AwayScore,
+			&m.Status,
+		)
+		if err != nil {
+			slog.Error("Error scanning knockout match", "error", err)
+			return nil, err
+		}
+		matches = append(matches, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		slog.Error("Error iterating knockout matches", "error", err)
+		return nil, err
+	}
+
+	return matches, nil
 }
 
 func (r *footballMetaRepoServices) GetAllLeagueSeasons(ctx context.Context) ([]types.GetLeagueSeason, error) {
