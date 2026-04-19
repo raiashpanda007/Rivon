@@ -37,28 +37,30 @@ func InitDb(pgUrl string) (*Database, error) {
 }
 
 type AdminData struct {
-	Balance int
-	Assets  []AdminAsset
+	Balance       int
+	LockedBalance int
+	Assets        []AdminAsset
 }
 
 type AdminAsset struct {
-	MarketID string
-	Quantity int
+	MarketID  string
+	Quantity  int
+	LockedQty int
 }
 
 func (r *Database) GetAdminData(adminID string) (*AdminData, error) {
 	ctx := context.Background()
 
-	var balance int64
+	var balance, lockedBalance int64
 	err := r.pgdb.QueryRow(ctx,
-		"SELECT balance FROM wallets WHERE user_id = $1", adminID,
-	).Scan(&balance)
+		"SELECT balance, locked_balance FROM wallets WHERE user_id = $1", adminID,
+	).Scan(&balance, &lockedBalance)
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := r.pgdb.Query(ctx,
-		"SELECT market_id, quantity FROM assets WHERE user_id = $1", adminID,
+		"SELECT market_id::text, quantity, locked_qty FROM assets WHERE user_id = $1", adminID,
 	)
 	if err != nil {
 		return nil, err
@@ -68,14 +70,14 @@ func (r *Database) GetAdminData(adminID string) (*AdminData, error) {
 	var assets []AdminAsset
 	for rows.Next() {
 		var marketID string
-		var qty int64
-		if err := rows.Scan(&marketID, &qty); err != nil {
+		var qty, lockedQty int64
+		if err := rows.Scan(&marketID, &qty, &lockedQty); err != nil {
 			return nil, err
 		}
-		assets = append(assets, AdminAsset{MarketID: marketID, Quantity: int(qty)})
+		assets = append(assets, AdminAsset{MarketID: marketID, Quantity: int(qty), LockedQty: int(lockedQty)})
 	}
 
-	return &AdminData{Balance: int(balance), Assets: assets}, nil
+	return &AdminData{Balance: int(balance), LockedBalance: int(lockedBalance), Assets: assets}, nil
 }
 
 func (r *Database) GetAllMarkets() ([]Market, error) {

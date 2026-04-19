@@ -1,0 +1,4 @@
+BEGIN;
+ALTER TABLE wallets DROP COLUMN IF EXISTS locked_balance;
+ALTER TABLE assets  DROP COLUMN IF EXISTS locked_qty;
+COMMIT;

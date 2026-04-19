@@ -223,6 +223,10 @@ func (r *OrderBook) matchBids(order *Order, price int) ([]Fills, int) {
 				continue
 			}
 
+			if queuedOrder.UserId == order.UserId {
+				continue
+			}
+
 			remainingInQueue := queuedOrder.Quantity - queuedOrder.Filled
 			remainingInIncoming := order.Quantity - order.Filled
 
@@ -312,6 +316,10 @@ func (r *OrderBook) matchAsks(order *Order, price int) ([]Fills, int) {
 
 			if queuedOrder.Filled >= queuedOrder.Quantity {
 				bidOrders = append(bidOrders[:i], bidOrders[i+1:]...)
+				continue
+			}
+
+			if queuedOrder.UserId == order.UserId {
 				continue
 			}
 
