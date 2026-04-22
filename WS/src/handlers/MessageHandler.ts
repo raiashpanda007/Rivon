@@ -1,0 +1,7 @@
+class MessageHandler {
+
+  constructor() {
+
+  }
+
+}

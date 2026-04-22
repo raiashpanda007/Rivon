@@ -62,6 +62,9 @@ jobs:
       - name: Install MailServer Dependencies
         working-directory: ./MailServer
         run: bun install
+      - name: Install WS Dependencies
+        working-directory: ./WS
+        run: bun install
       - name: Running Migrations Test
         working-directory: ./cli
         run: go run main.go migrate up
@@ -71,3 +74,6 @@ jobs:
       - name: Building Backend Services
         working-directory: ./cli
         run: go run main.go build
+      - name: Building WS Service
+        working-directory: ./WS
+        run: bun run build
