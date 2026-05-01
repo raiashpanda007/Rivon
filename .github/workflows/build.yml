@@ -10,6 +10,24 @@ on:
 env:
   ENVIROMENT: dev
 jobs:
+  lint-comments:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check for TODO / fix comments
+        run: |
+          if grep -rn \
+            --include="*.go" \
+            --include="*.ts" \
+            --include="*.tsx" \
+            -iE "//\s*(todo|fix)\b" .; then
+            echo "❌ Found TODO/fix comments — resolve them before merging."
+            exit 1
+          fi
+          echo "✅ No TODO/fix comments found."
+
   build:
     runs-on: ubuntu-latest
     services:
@@ -62,6 +80,9 @@ jobs:
       - name: Install MailServer Dependencies
         working-directory: ./MailServer
         run: bun install
+      - name: Install WS Dependencies
+        working-directory: ./WS
+        run: bun install
       - name: Running Migrations Test
         working-directory: ./cli
         run: go run main.go migrate up
@@ -71,3 +92,6 @@ jobs:
       - name: Building Backend Services
         working-directory: ./cli
         run: go run main.go build
+      - name: Building WS Service
+        working-directory: ./WS
+        run: bun run build

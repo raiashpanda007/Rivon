@@ -341,6 +341,12 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 
 		case wsInMsg := <-wsInChannel:
 			switch wsInMsg.MessageType {
+			case wsmessagestypes.WALLET_LOAD:
+				go userWallet.GetUser(wsInMsg.UserId)
+
+			case wsmessagestypes.WALLET_EVICT:
+				userWallet.RemoveUser(wsInMsg.UserId)
+
 			case wsmessagestypes.ORDERBOOK_SUBSCIRBE:
 				bidDepth := copyDepth(OrderBook.BidDepth)
 				askDepth := copyDepth(OrderBook.AskDepth)

@@ -18,5 +18,10 @@
         "dir": "./MailServer",
         "entrypoint": ".",
         "type": "bun"
+    },
+    "ws": {
+        "dir": "./WS",
+        "entrypoint": ".",
+        "type": "bun"
     }
 }

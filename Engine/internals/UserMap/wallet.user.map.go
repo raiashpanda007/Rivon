@@ -29,9 +29,8 @@ type wallet struct {
 }
 
 type redisMessageStruct struct {
-	UserId string                    `json:"id"`
-	Wallet wallet                    `json:"userWallet"`
-	Assets []redisMessageAssetStruct `json:"assets"`
+	Balance int                       `json:"balance"`
+	Assets  []redisMessageAssetStruct `json:"assets"`
 }
 
 type asset struct {
@@ -88,7 +87,7 @@ func (r *UserWallet) loadAdminFromDB(db *database.Database) error {
 	data, err := db.GetAdminData(AdminID)
 	if err != nil {
 		return errors.New("failed to load admin data from database: " + err.Error())
-	}
+	}	
 
 	assetMap := make(map[string]asset)
 	for _, a := range data.Assets {
@@ -104,6 +103,18 @@ func (r *UserWallet) loadAdminFromDB(db *database.Database) error {
 	}
 	r.adminEscrowBalance = data.LockedBalance
 	return nil
+}
+
+//////////////////// EVICT USER ////////////////////
+
+func (r *UserWallet) RemoveUser(userId string) {
+	if userId == AdminID {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.WalletMap, userId)
+	delete(r.AssetMap, userId)
 }
 
 //////////////////// LOAD USER ////////////////////
@@ -123,7 +134,7 @@ func (r *UserWallet) addUserWallet(userID string) error {
 	}
 
 	r.WalletMap[userID] = &UserWalletStruct{
-		Wallet: user.Wallet,
+		Wallet: wallet{Balance: user.Balance},
 	}
 
 	assetMap := make(map[string]asset)
