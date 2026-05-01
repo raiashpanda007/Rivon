@@ -11,6 +11,8 @@ type WSOutPayload interface {
 const (
 	ORDERBOOK_SUBSCIRBE WSInMessageType = "ORDER_BOOK_SUBSCRIBE"
 	DEPTH_SUBSCRIBE     WSInMessageType = "DEPTH_SUBSCRIBE"
+	WALLET_LOAD         WSInMessageType = "WALLET_LOAD"
+	WALLET_EVICT        WSInMessageType = "WALLET_EVICT"
 )
 
 const (
@@ -30,9 +32,9 @@ type WSOutMessageStruct struct {
 // UserId is empty for unauthenticated connections; ConnectionId always
 // identifies the physical connection so the WS server can route the reply.
 type WSInMessageStruct struct {
-	MessageType  WSInMessageType
-	UserId       string
-	ConnectionId string
+	MessageType  WSInMessageType `json:"MessageType"`
+	UserId       string          `json:"UserId"`
+	ConnectionId string          `json:"ConnectionId"`
 }
 
 type OrderbookPayload struct {

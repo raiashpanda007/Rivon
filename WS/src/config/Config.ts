@@ -5,13 +5,12 @@ dotenv.config();
 
 export interface ConfigType {
   PORT: number,
-  REDIS_PORT: number
+  REDIS_URL: string
 }
-
 
 const ENVSchema = zod.object({
   PORT: zod.coerce.number().int().positive(),
-  REDIS_PORT: zod.coerce.number().int().positive(),
+  REDIS_URL: zod.string(),
 })
 
 class Config {

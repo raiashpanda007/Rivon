@@ -17,6 +17,7 @@ const BASE_URL = arg("url", process.env.BASE_URL || "http://localhost:8080");
 const ORDER_REDIS_URL = arg("redis", process.env.ORDER_REDIS_URL || "redis://localhost:6380");
 const TOKEN = process.env.TOKEN;
 const MARKET_ID = process.env.MARKET_ID;
+const SIDE = (arg("side", "BOTH")).toUpperCase();
 
 if (!TOKEN) {
   console.error("ERROR: TOKEN env var is required  (export TOKEN=<jwt>)");
@@ -42,6 +43,10 @@ if (!VALID_RATES.includes(rate)) {
   console.error(`ERROR: --rate must be one of ${VALID_RATES.join(", ")} (req/sec)`);
   process.exit(1);
 }
+if (!["BUY", "SELL", "BOTH"].includes(SIDE)) {
+  console.error(`ERROR: --side must be BUY, SELL, or BOTH (default)`);
+  process.exit(1);
+}
 
 const durationSec = durationMin * 60;
 
@@ -49,8 +54,7 @@ const durationSec = durationMin * 60;
 // Alternates BUY / SELL on each request to keep the orderbook active.
 // Price and quantity are randomised within a tight band so fills actually happen.
 function makeBody(i) {
-  const side = i % 2 === 0 ? "BUY" : "SELL";
-  // price band 95–105 so orders cross and generate fills
+  const side = SIDE === "BOTH" ? (i % 2 === 0 ? "BUY" : "SELL") : SIDE;
   const price = 95 + Math.floor(Math.random() * 11);
   const quantity = 1 + Math.floor(Math.random() * 5);
   return JSON.stringify({
@@ -101,6 +105,7 @@ console.log(`
 ║  Duration  : ${String(durationMin + " min").padEnd(38)}║
 ║  Rate      : ${String(rate + " req/sec").padEnd(38)}║
 ║  Market ID : ${MARKET_ID.padEnd(38)}║
+║  Side      : ${SIDE.padEnd(38)}║
 ╚══════════════════════════════════════════════════════╝
 `);
 

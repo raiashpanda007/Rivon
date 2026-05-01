@@ -1,11 +1,16 @@
 import Redis from "ioredis";
+import type { ConfigType } from "../config/Config";
+import Config from "../config/Config";
 
 export default class RedisClient {
   private static instance: RedisClient;
   private client: Redis;
 
+  private conf: ConfigType
+
   private constructor() {
-    this.client = new Redis(process.env.REDIS_URL as string);
+    this.conf = new Config().MustLoad()
+    this.client = new Redis(this.conf.REDIS_URL)
 
     this.client.on("connect", () => {
       console.log("Redis connected");

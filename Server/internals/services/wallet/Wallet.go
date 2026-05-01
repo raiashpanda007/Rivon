@@ -22,36 +22,34 @@ func NewWalletServices(walletRepo WalletRepo, userMapRedis *redis.Client) Wallet
 	return &walletServiceUtils{repo: walletRepo, userMapRedis: userMapRedis}
 }
 
+type walletRedisData struct {
+	Balance int64   `json:"balance"`
+	Assets  []Asset `json:"assets"`
+}
+
+func (r *walletServiceUtils) pushToRedis(ctx context.Context, userID string, w *Wallet) error {
+	assets, err := r.repo.GetUserAssets(ctx, userID)
+	if err != nil {
+		slog.Error("Unable to fetch assets for redis push", "userID", userID, "err", err)
+		assets = []Asset{}
+	}
+
+	data, err := json.Marshal(walletRedisData{Balance: w.Balance, Assets: assets})
+	if err != nil {
+		return err
+	}
+	return r.userMapRedis.Set(ctx, userID, data, 0).Err()
+}
+
 func (r *walletServiceUtils) GetWalletState(ctx context.Context, userID string) (*Wallet, utils.ErrorType, error) {
 	wallet, errType, err := r.repo.GetWalletInfo(ctx, userID)
 	if err != nil {
 		return nil, errType, err
 	}
 
-	count, err := r.userMapRedis.Exists(ctx, userID).Result()
-	if err != nil {
-		slog.Error("Unable to check the user status in redis instance", slog.Any("Error :: ", err))
+	if err := r.pushToRedis(ctx, userID, wallet); err != nil {
+		slog.Error("Unable to save wallet to redis", "userID", userID, "err", err)
 		return nil, utils.ErrInternal, err
-	}
-
-	if count > 0 {
-		return wallet, utils.NoError, err
-	} else {
-
-		data, err := json.Marshal(wallet)
-
-		if err != nil {
-			slog.Error("Unable to marshal data", slog.Any("Error :: ", err))
-			return nil, utils.ErrInternal, err
-		}
-
-		err = r.userMapRedis.Set(ctx, userID, data, 0).Err()
-
-		if err != nil {
-			slog.Error("Unable to save the user wallet with info in redis", slog.Any("ERROR :: ", err))
-			return nil, utils.ErrInternal, err
-		}
-
 	}
 
 	return wallet, utils.NoError, nil

@@ -24,8 +24,14 @@ type walletRepoUtils struct {
 	pgDb *pgxpool.Pool
 }
 
+type Asset struct {
+	MarketID string `json:"marketId"`
+	Quantity int64  `json:"quantity"`
+}
+
 type WalletRepo interface {
 	GetWalletInfo(ctx context.Context, userID string) (*Wallet, utils.ErrorType, error)
+	GetUserAssets(ctx context.Context, userID string) ([]Asset, error)
 }
 
 func NewWalletRepo(pgDB *pgxpool.Pool) WalletRepo {
@@ -33,6 +39,28 @@ func NewWalletRepo(pgDB *pgxpool.Pool) WalletRepo {
 		pgDb: pgDB,
 	}
 
+}
+
+func (r *walletRepoUtils) GetUserAssets(ctx context.Context, userID string) ([]Asset, error) {
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, errors.New("invalid user ID format")
+	}
+	rows, err := r.pgDb.Query(ctx, `SELECT market_id, quantity FROM assets WHERE user_id = $1 AND quantity > 0`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var assets []Asset
+	for rows.Next() {
+		var a Asset
+		if err := rows.Scan(&a.MarketID, &a.Quantity); err != nil {
+			return nil, err
+		}
+		assets = append(assets, a)
+	}
+	return assets, nil
 }
 
 func (r *walletRepoUtils) GetWalletInfo(ctx context.Context, userID string) (*Wallet, utils.ErrorType, error) {

@@ -3,7 +3,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"github.com/go-redis/redis/v8"
 	wsmessagestypes "github.com/raiashpanda007/rivon/engine/internals/utils/WsMessagesTypes"
@@ -19,7 +19,6 @@ type wsInPubSubStruct struct {
 }
 
 func InitWSInPubSub(ctx context.Context, wsInPubSubRedisClient *redis.Client) WSInPubSubServices {
-
 	return &wsInPubSubStruct{
 		ctx:         ctx,
 		redisClient: wsInPubSubRedisClient,
@@ -39,15 +38,13 @@ func (r *wsInPubSubStruct) Subscribe(marketID string, wsInChan chan wsmessagesty
 
 	go func() {
 		defer pubsub.Close()
-
 		ch := pubsub.Channel()
 
 		for msg := range ch {
 			var parsed wsmessagestypes.WSInMessageStruct
 
-			err := json.Unmarshal([]byte(msg.Payload), &parsed)
-			if err != nil {
-				log.Println("failed to unmarshal:", err)
+			if err := json.Unmarshal([]byte(msg.Payload), &parsed); err != nil {
+				slog.Error("wsIn unmarshal failed", "marketId", marketID, "err", err)
 				continue
 			}
 
