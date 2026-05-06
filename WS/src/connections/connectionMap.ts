@@ -16,7 +16,7 @@ class UserConnectionMap {
 
 }
 
-type ConnectionMeta = { userId: string; marketId: string };
+type ConnectionMeta = { userId?: string; marketId: string };
 
 class ConnectionMap {
   private ConnectionMap: Map<string, WebSocket>
@@ -37,7 +37,7 @@ class ConnectionMap {
     return this.ConnectionMap.get(connectionId);
   }
 
-  public SetMeta(connectionId: string, userId: string, marketId: string) {
+  public SetMeta(connectionId: string, marketId: string, userId?: string) {
     this.meta.set(connectionId, { userId, marketId });
   }
 

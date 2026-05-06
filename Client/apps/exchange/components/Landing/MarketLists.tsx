@@ -84,13 +84,13 @@ function MarketTableRow({ market }: { market: MarketWithTeamDetails }) {
         </td>
         <td className="px-3 py-2.5 align-middle text-right hidden lg:table-cell">
           <span className="font-mono text-xs text-muted-foreground">
-            ${market.openPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${(market.openPrice / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </td>
         <td className="px-3 py-2.5 align-middle text-right">
           <div className="flex flex-col items-end">
             <span className="font-mono text-xs font-bold">
-              ${market.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${(market.lastPrice / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <div className={`flex items-center text-[10px] font-mono font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
               {isPositive

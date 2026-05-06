@@ -13,5 +13,6 @@ func NewMarketRoutes(cfg *config.Config, pgDb *pgxpool.Pool, Controllers control
 	Middlewares := middlewares.NewMiddlewares(cfg, pgDb)
 	router.Get("/", Controllers.GetMarkets)
 	router.With(Middlewares.AuthVerifyMiddleware).Post("/create-order", Controllers.PlaceOrder)
+	router.With(Middlewares.AuthVerifyMiddleware).Get("/open-orders", Controllers.GetUserOpenOrders)
 	return router
 }

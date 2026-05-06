@@ -13,12 +13,14 @@ const (
 	DEPTH_SUBSCRIBE     WSInMessageType = "DEPTH_SUBSCRIBE"
 	WALLET_LOAD         WSInMessageType = "WALLET_LOAD"
 	WALLET_EVICT        WSInMessageType = "WALLET_EVICT"
+	CANCEL_ORDER_WS     WSInMessageType = "CANCEL_ORDER_WS"
 )
 
 const (
 	ORDERBOOK_DATA   WSOutMessageType = "ORDERBOOK_DATA"
 	DEPTH_DATA       WSOutMessageType = "DEPTH_DATA"
 	ORDERBOOK_UPDATE WSOutMessageType = "ORDERBOOK_UPDATE"
+	ORDER_CANCELLED  WSOutMessageType = "ORDER_CANCELLED"
 )
 
 type WSOutMessageStruct struct {
@@ -35,6 +37,8 @@ type WSInMessageStruct struct {
 	MessageType  WSInMessageType `json:"MessageType"`
 	UserId       string          `json:"UserId"`
 	ConnectionId string          `json:"ConnectionId"`
+	OrderId      string          `json:"OrderId,omitempty"`
+	CancelQty    int             `json:"CancelQty,omitempty"`
 }
 
 type OrderbookPayload struct {
@@ -67,3 +71,11 @@ type OrderbookUpdatePayload struct {
 }
 
 func (o OrderbookUpdatePayload) wsPaylod() {}
+
+type OrderCancelledPayload struct {
+	OrderId      string `json:"orderId"`
+	Success      bool   `json:"success"`
+	CancelledQty int    `json:"cancelledQty"`
+}
+
+func (o OrderCancelledPayload) wsPaylod() {}

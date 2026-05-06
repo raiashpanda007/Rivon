@@ -1,5 +1,5 @@
 import type Redis from "ioredis";
-import type { MarketStreamWsConnectionMap, ConnectionMap } from "../connections/connectionMap";
+import type { MarketStreamWsConnectionMap, ConnectionMap, UserConnectionMap } from "../connections/connectionMap";
 
 const UNICAST_TYPES = new Set(["ORDERBOOK_DATA", "DEPTH_DATA"]);
 
@@ -8,12 +8,14 @@ class MarketSubscriber {
   private subscriber: Redis;
   private marketMapConn: MarketStreamWsConnectionMap;
   private connMap: ConnectionMap;
+  private userConnMap: UserConnectionMap;
   private subscribedMarkets: Set<string>;
 
-  constructor(redisClient: Redis, marketMap: MarketStreamWsConnectionMap, connMap: ConnectionMap) {
+  constructor(redisClient: Redis, marketMap: MarketStreamWsConnectionMap, connMap: ConnectionMap, userConnMap: UserConnectionMap) {
     this.subscriber = redisClient.duplicate();
     this.marketMapConn = marketMap;
     this.connMap = connMap;
+    this.userConnMap = userConnMap;
     this.subscribedMarkets = new Set<string>();
     this.subscriber.on("message", this.handleMessage.bind(this));
   }
@@ -31,11 +33,19 @@ class MarketSubscriber {
   private handleMessage(channel: string, message: string) {
     const marketId = channel.startsWith("WS_OUT_") ? channel.slice(7) : channel;
 
-    let parsed: { type?: string; connectionId?: string } = {};
+    let parsed: { type?: string; connectionId?: string; userId?: string } = {};
     try {
       parsed = JSON.parse(message);
     } catch {
       // unparseable — fall through to broadcast
+    }
+
+    if (parsed.type === "ORDER_CANCELLED" && parsed.userId) {
+      const ws = this.userConnMap.UserConnectionMap.get(parsed.userId as string);
+      if (ws && ws.readyState === ws.OPEN) {
+        ws.send(message);
+      }
+      return;
     }
 
     if (parsed.type && UNICAST_TYPES.has(parsed.type) && parsed.connectionId) {

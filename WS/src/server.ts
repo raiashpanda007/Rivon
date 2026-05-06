@@ -25,8 +25,8 @@ class Server {
     this.redisClient = RedisClient.getInstance().getClient();
     this.marketConnMap = new MarketStreamWsConnectionMap();
     this.connMap = new ConnectionMap();
-    this.marketSubscriber = new MarketSubscriber(this.redisClient, this.marketConnMap, this.connMap)
     this.userConnMap = new UserConnectionMap()
+    this.marketSubscriber = new MarketSubscriber(this.redisClient, this.marketConnMap, this.connMap, this.userConnMap)
     this.marketPublisher = new Publisher(this.redisClient);
     this.messageHandler = new MessageHandler(this.marketPublisher, this.marketSubscriber, this.userConnMap, this.marketConnMap, this.connMap)
   }

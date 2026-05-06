@@ -81,7 +81,7 @@ INSERT INTO users (
   'Ashwin Rai',
   'raiashwin005@gmail.com',
   'credentials',
-  '12345678',
+  '$2a$10$U5ZABIxFrIbr51gcK462h.GbX9bwMBpCYIC5R599NzxJJoVE7CA8m',
   TRUE
 )
 ON CONFLICT (email, provider) DO NOTHING;

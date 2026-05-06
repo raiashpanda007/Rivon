@@ -16,9 +16,9 @@ import (
 	"github.com/raiashpanda007/rivon/internals/utils"
 )
 
-func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub, reg *registry.Registry, UserMapRedis *redis.Client) chi.Router {
+func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client, OrderRedis *redis.Client, PubSubConn pubsub.Pubsub, reg *registry.Registry, UserMapRedis *redis.Client, TradeRedis *redis.Client) chi.Router {
 	router := chi.NewRouter()
-	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn, reg, UserMapRedis)
+	Controllers := controllers.NewController(PgDb, OtpRedis, OrderRedis, cfg.Auth.AuthSecret, cfg.MailServerURL, cfg.Server.CookieSecure, cfg.ClientBaseURL, PubSubConn, reg, UserMapRedis, TradeRedis)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:3000",
@@ -51,7 +51,6 @@ func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client,
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Timeout(60 * time.Second))
 
 	router.Get("/api/rivon/health-check", func(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJson(w, http.StatusOK, utils.Response[string]{
@@ -62,13 +61,21 @@ func InitRouters(cfg *config.Config, PgDb *pgxpool.Pool, OtpRedis *redis.Client,
 		})
 	})
 
-	AuthRouter := NewAuthRouter(cfg, PgDb, Controllers)
-	WalletRouter := NewWalletRouter(PgDb, cfg, Controllers)
-	FootBallMetaRouter := NewFootBallMetaRoutes(cfg, PgDb, Controllers)
-	MarketRouter := NewMarketRoutes(cfg, PgDb, Controllers)
-	router.Mount("/api/rivon/auth", AuthRouter)
-	router.Mount("/api/rivon/wallet", WalletRouter)
-	router.Mount("/api/rivon/football-meta", FootBallMetaRouter)
-	router.Mount("/api/rivon/markets", MarketRouter)
+	// SSE endpoint — no timeout middleware; EventSource reconnects automatically.
+	CandleRouter := NewCandleRoutes(Controllers)
+	router.Mount("/api/rivon/candles", CandleRouter)
+
+	// All other routes with a 60-second request timeout.
+	router.Group(func(r chi.Router) {
+		r.Use(middleware.Timeout(60 * time.Second))
+		AuthRouter := NewAuthRouter(cfg, PgDb, Controllers)
+		WalletRouter := NewWalletRouter(PgDb, cfg, Controllers)
+		FootBallMetaRouter := NewFootBallMetaRoutes(cfg, PgDb, Controllers)
+		MarketRouter := NewMarketRoutes(cfg, PgDb, Controllers)
+		r.Mount("/api/rivon/auth", AuthRouter)
+		r.Mount("/api/rivon/wallet", WalletRouter)
+		r.Mount("/api/rivon/football-meta", FootBallMetaRouter)
+		r.Mount("/api/rivon/markets", MarketRouter)
+	})
 	return router
 }

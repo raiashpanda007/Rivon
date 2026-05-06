@@ -21,6 +21,7 @@ type MarketServices interface {
 	CreateMarket(ctx context.Context, teamID, marketName, marketCode string, lastPrice, volume24H, totalVolume, openPrice24H int64) (types.MarketTable, utils.ErrorType, error)
 	PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error)
 	CancelOrder(ctx context.Context, userId, marketId, orderId uuid.UUID) (types.FillResult, error)
+	GetUserOpenOrders(ctx context.Context, userId, marketId string) ([]UserOrder, utils.ErrorType, error)
 }
 
 type marketSvc struct {
@@ -131,6 +132,11 @@ func (r *marketSvc) CancelOrder(ctx context.Context, userId, marketId, orderId u
 func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, price int64, quantity int64, orderType types.OrderTypes) (types.FillResult, error) {
 	orderId := uuid.New()
 
+	if err := r.repo.CreateOrder(ctx, orderId, userId, marketId, string(orderType), price, quantity); err != nil {
+		slog.Error("Unable to persist order to DB before routing to engine", "error", err)
+		return types.FillResult{}, err
+	}
+
 	// Register before XAdd to eliminate the race where the Engine responds
 	// before the channel entry exists in the map.
 	ch := r.registry.Register(orderId.String())
@@ -158,6 +164,15 @@ func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, 
 	select {
 	case fill := <-ch:
 		slog.Info("Order fill received from engine", "orderId", orderId, "executedQty", fill.ExecutedQuantity)
+		status := "pending"
+		if fill.ExecutedQuantity >= int(quantity) {
+			status = "filled"
+		} else if fill.ExecutedQuantity > 0 {
+			status = "partial"
+		}
+		if err := r.repo.UpdateOrderStatus(ctx, orderId, status, int64(fill.ExecutedQuantity)); err != nil {
+			slog.Error("Failed to update order status after fill", "orderId", orderId, "err", err)
+		}
 		return fill, nil
 	case <-time.After(5 * time.Second):
 		r.registry.Delete(orderId.String())
@@ -167,4 +182,24 @@ func (r *marketSvc) PlaceOrder(ctx context.Context, userId, marketId uuid.UUID, 
 		r.registry.Delete(orderId.String())
 		return types.FillResult{}, ctx.Err()
 	}
+}
+
+func (r *marketSvc) GetUserOpenOrders(ctx context.Context, userId, marketId string) ([]UserOrder, utils.ErrorType, error) {
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		return nil, utils.ErrBadRequest, errors.New("invalid user ID")
+	}
+	marketUUID, err := uuid.Parse(marketId)
+	if err != nil {
+		return nil, utils.ErrBadRequest, errors.New("invalid market ID")
+	}
+	orders, err := r.repo.GetUserOpenOrders(ctx, userUUID, marketUUID)
+	if err != nil {
+		return nil, utils.ErrInternal, err
+	}
+	if orders == nil {
+		orders = []UserOrder{}
+	}
+	return orders, utils.NoError, nil
+
 }

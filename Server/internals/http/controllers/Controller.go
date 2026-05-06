@@ -12,18 +12,21 @@ type Controllers struct {
 	WalletController
 	FootballMetaController
 	MarketController
+	CandleController
 }
 
-func NewController(pgDb *pgxpool.Pool, otpRedis *redis.Client, orderRedis *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool, clientBaseURL string, PubSubConn pubsub.Pubsub, reg *registry.Registry, userMapRedis *redis.Client) Controllers {
+func NewController(pgDb *pgxpool.Pool, otpRedis *redis.Client, orderRedis *redis.Client, jwtSecret, mailServerURL string, cookieSecure bool, clientBaseURL string, PubSubConn pubsub.Pubsub, reg *registry.Registry, userMapRedis *redis.Client, tradeRedis *redis.Client) Controllers {
 
 	auth := InitAuthController(pgDb, otpRedis, jwtSecret, mailServerURL, cookieSecure, clientBaseURL)
 	walletController := InitWalletController(pgDb, userMapRedis)
 	footballMetaController := InitFootballMetaController(pgDb)
 	marketController := InitMarketControllers(pgDb, orderRedis, PubSubConn, reg)
+	candleController := InitCandleController(tradeRedis, pgDb)
 	return Controllers{
 		AuthController:         auth,
 		WalletController:       walletController,
 		FootballMetaController: footballMetaController,
 		MarketController:       marketController,
+		CandleController:       candleController,
 	}
 }

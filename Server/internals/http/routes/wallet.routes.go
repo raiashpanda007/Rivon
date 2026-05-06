@@ -12,5 +12,7 @@ func NewWalletRouter(pgDb *pgxpool.Pool, cfg *config.Config, Controller controll
 	router := chi.NewRouter()
 	Middlewares := middlewares.NewMiddlewares(cfg, pgDb)
 	router.With(Middlewares.AuthVerifyMiddleware).Get("/me", Controller.GetWallet)
+	router.With(Middlewares.AuthVerifyMiddleware).Get("/transactions", Controller.GetTransactions)
+	router.With(Middlewares.AuthVerifyMiddleware).Get("/assets", Controller.GetAssets)
 	return router
 }
