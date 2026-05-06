@@ -60,7 +60,7 @@ When scale demands it, the container-per-market path is open. Nothing in the cur
 
 ## Architecture
 
-Four independent services connected through Redis Streams:
+Six independent services connected through Redis Streams and PubSub:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -70,7 +70,7 @@ Four independent services connected through Redis Streams:
 │        │   base app   │   │  exchange terminal  │   │  bet interface   │  │
 │        └──────────────┘   └─────────────────────┘   └──────────────────┘  │
 └────────────────────────────────────┬───────────────────────────────────────┘
-                                     │  REST API  /  WebSocket
+                                     │  REST API
 ┌────────────────────────────────────▼───────────────────────────────────────┐
 │                             Server  (Go / Chi)                             │
 │                                                                            │
@@ -99,7 +99,7 @@ Four independent services connected through Redis Streams:
 │   └─────────────────────────────┬────────────────────────────────────────┘ │
 │                                 │  Fill events                             │
 │   ┌─────────────────────────────▼────────────────────────────────────────┐ │
-│   │  Trade Redis Stream  →  consumed by Server for settlement            │ │
+│   │  Trade Redis Stream  →  consumed by DBWritter for settlement         │ │
 │   └──────────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────────┘
            │
@@ -108,6 +108,10 @@ Four independent services connected through Redis Streams:
 │  OTP · Transactional mail │
 └───────────────────────────┘
 ```
+
+Additional runtime services:
+- WS (Bun) runs the WebSocket gateway. It bridges client subscriptions and commands through Redis PubSub on :6383.
+- DBWritter (Go) consumes the Trade Redis stream, persists orders/trades/wallet updates, and writes trade ticks + candle feeds.
 
 ### Order Lifecycle
 
@@ -124,8 +128,8 @@ Four independent services connected through Redis Streams:
       └── No match    → queue order at limit price, no fills
 [7] Fill events published to Trade Redis Stream
 [8] Engine publishes depth/trade events to WS PubSub Redis (per-market channel)
-[9] Server settlement worker reads fills, updates wallet + positions
-[10] WebSocket broadcast → live orderbook depth and trade feed to clients
+[9] DBWritter consumes the Trade Redis stream, persists orders/trades/wallets, and writes trade ticks
+[10] WS gateway broadcasts live orderbook depth and trade feed to clients
 ```
 
 Every step from [3] onwards is fully asynchronous. The matching path itself is lock-free per market — one goroutine owns one orderbook, no mutexes required.
@@ -264,8 +268,10 @@ Load tests were run with `bots/load-tester/` — a custom tool that uses [k6](ht
 | Frontend | Next.js 16, Turborepo, Bun | Three apps in one monorepo |
 | State Management | Redux Toolkit | Shared `@workspace/store` package |
 | API Server | Go, Chi router | Layered: routes → controllers → services |
+| WebSocket Gateway | Bun, ws, Redis PubSub | Dedicated WS server for market streams |
 | DB Driver | pgx v5 | Connection pool, prepared statements |
 | Matching Engine | Go, custom heaps | Goroutine-per-market, zero shared state |
+| Trade Writer | Go (DBWritter) | Trade Redis consumer, persists trades/wallets + ticks |
 | Message Bus | Redis Streams | Consumer groups, at-least-once delivery |
 | Cache | Redis × 4 | OTP / Orders / Trades / WS PubSub — isolated by role |
 | Database | PostgreSQL | 6 migrations via golang-migrate |
@@ -351,6 +357,14 @@ Standalone Go binary. No HTTP. Reads from Order Redis, writes to Trade Redis.
 | `internals/Redis/userWalletMap.redis.go` | Redis client for persisting UserWalletMap snapshots |
 | `internals/utils/WsMessagesTypes/` | Shared WS message structs (WSInMessageStruct, WSOutMessageStruct) |
 
+### WS — `WS/`
+
+Bun WebSocket gateway. Handles market subscriptions and order cancels, subscribing to Redis PubSub channels and forwarding client requests through Redis.
+
+### DBWritter — `DBWritter/`
+
+Go trade-settlement worker. Consumes the `TRADES` Redis stream, writes orders/trades/wallet updates to Postgres, stores trade ticks, and publishes candle feeds.
+
 ### MailServer — `MailServer/`
 
 Express v5 microservice for transactional email. Handles OTP delivery and trade/account notifications. All inputs validated with Zod before processing.
@@ -398,14 +412,27 @@ GITHUB_AUTH_CLIENT_ID=...
 FOOTBALL_API_KEY_1=...
 ```
 
+WS and DBWritter env keys:
+
+```env
+# WS/.env
+PORT=8003
+REDIS_URL=redis://localhost:6383
+
+# DBWritter/.env
+ENVIROMENT=dev
+PG_DB_URL=postgres://...
+TRADE_REDIS_URL=redis://localhost:6381
+```
+
 ### 3. Run Migrations and Build
 
 ```bash
 cd cli
 
 go run main.go migrate up    # Apply all DB migrations
-go run main.go build         # Compile all services → bin/
-go run main.go start         # Start all Go services
+go run main.go build         # Build all services
+go run main.go start         # Start all services
 ```
 
 Or start services individually:
@@ -414,6 +441,8 @@ Or start services individually:
 go run main.go start api-server
 go run main.go start engine
 go run main.go start jobs
+go run main.go start ws
+go run main.go start dbwritter
 ```
 
 ### 4. Frontend
@@ -462,15 +491,16 @@ The `Count` parameter in `XReadGroup` trades latency for throughput. At low volu
 
 pgx v5 connection pooling handles concurrent request load. Read-heavy queries (market depth snapshots, trade history) can be routed to read replicas with a connection string swap.
 
-**Trade Settlement — decoupling opportunity**
+**Trade Settlement — dedicated worker**
 
-Settlement currently happens synchronously after the server reads from Trade Redis. Extracting this into a dedicated settlement worker would remove it from the critical path entirely and allow independent scaling.
+DBWritter consumes the Trade Redis stream, persists orders/trades/wallet updates, and writes trade_ticks for candle generation. This keeps the API server off the settlement path and allows independent scaling.
 
 ---
 
 ## Roadmap
 
-- [~] **WebSocket server** — per-market WS PubSub channels wired (`wsIn`/`wsOut`); dedicated WS PubSub Redis on `:6383`; fill and depth event publishing in place; client-side connection and subscription layer in progress
+- [x] **WebSocket gateway** — WS server + client subscription layer wired; per-market PubSub on `:6383` for depth/trade feeds and order cancels
+- [x] **Trade settlement worker** — DBWritter consumes Trade Redis, persists orders/trades/wallets, writes trade ticks + candle feeds
 - [x] **Persistent orderbook** — msgpack snapshot save/restore; full orderbook state (orders, heaps, price) recovered on restart without hitting PostgreSQL
 - [x] **Order cancellation** — `CANCEL_ORDER` handled in market processor with pubsub notification and trade stream integration
 - [ ] **Market resolution** — settle positions on match outcome (win / draw / loss)

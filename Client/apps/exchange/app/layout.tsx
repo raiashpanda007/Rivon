@@ -20,6 +20,7 @@ export const metadata = {
 }
 
 import { AppLayout } from "@workspace/ui/components/AppLayout"
+import { Toaster } from "@workspace/ui/components/sonner"
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
         <Providers>
           <AppLayout currentApp="trade">
             {children}
+            <Toaster richColors position="top-right" />
           </AppLayout>
         </Providers>
       </body>

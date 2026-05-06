@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	database "github.com/raiashpanda007/rivon/engine/internals/Database"
@@ -338,8 +341,17 @@ func (r *UserWallet) UnlockAsset(userId, marketId string, qty int) error {
 func (r *UserWallet) ExecuteTrade(buyerId, sellerId, marketId string, qty, price int) error {
 	total := qty * price
 
-	_, buyerAssets, _ := r.GetUser(buyerId)
-	sellerWallet, _, _ := r.GetUser(sellerId)
+	_, buyerAssets, buyerErr := r.GetUser(buyerId)
+	sellerWallet, _, sellerErr := r.GetUser(sellerId)
+
+	// Guard: sellerWallet is used whenever seller is a normal user.
+	if sellerId != AdminID && sellerWallet == nil {
+		return fmt.Errorf("seller wallet not loaded (userId=%s): %w", sellerId, sellerErr)
+	}
+	// Guard: buyerAssets is used whenever buyer is a normal user.
+	if buyerId != AdminID && buyerAssets == nil {
+		return fmt.Errorf("buyer assets not loaded (userId=%s): %w", buyerId, buyerErr)
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -374,4 +386,37 @@ func (r *UserWallet) ExecuteTrade(buyerId, sellerId, marketId string, qty, price
 	}
 
 	return nil
+}
+
+//////////////////// REDIS FLUSH ////////////////////
+
+func (r *UserWallet) FlushWalletToRedis(userId string) {
+	r.mu.RLock()
+	walletStruct, wOk := r.WalletMap[userId]
+	assetStruct, aOk := r.AssetMap[userId]
+	r.mu.RUnlock()
+
+	if !wOk || !aOk {
+		return
+	}
+
+	walletStruct.mutex.Lock()
+	balance := walletStruct.Wallet.Balance
+	walletStruct.mutex.Unlock()
+
+	assetStruct.mutex.Lock()
+	assets := make([]redisMessageAssetStruct, 0, len(assetStruct.Assets))
+	for mktId, a := range assetStruct.Assets {
+		assets = append(assets, redisMessageAssetStruct{MarketID: mktId, Quantity: a.Quantity})
+	}
+	assetStruct.mutex.Unlock()
+
+	data, err := json.Marshal(redisMessageStruct{Balance: balance, Assets: assets})
+	if err != nil {
+		slog.Error("FlushWalletToRedis marshal error", "userId", userId, "err", err)
+		return
+	}
+	if err := r.redisClient.Set(r.ctx, userId, string(data), 5*time.Minute).Err(); err != nil {
+		slog.Error("FlushWalletToRedis redis set error", "userId", userId, "err", err)
+	}
 }

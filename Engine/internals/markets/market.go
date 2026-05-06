@@ -119,7 +119,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			OrderBook.LastStreamId = msg.StreamId
 
 			if msg.OrderType == "CANCEL_ORDER" {
-				OrderBook.CancelOrder(msg.OrderId, msg.UserId)
+				OrderBook.CancelOrder(msg.OrderId, msg.UserId, 0)
 				if !silent {
 					normalCount++
 					go tradestream.TradeRedisStreamPublisher(
@@ -132,6 +132,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 						nil,
 						0,
 						0,
+						"", 0, "",
 						tradeRedis,
 					)
 					go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
@@ -175,6 +176,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 					fills,
 					executedQty,
 					msg.Price,
+					msg.UserId, msg.Quantity, msg.OrderType,
 					tradeRedis,
 				)
 				go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
@@ -193,9 +195,37 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			}
 		}
 
+		// Advance consumer group past replayed messages so the batch consumer
+		// doesn't re-deliver them and process each order twice.
+		if len(replayMsgs) > 0 {
+			lastReplayedId := replayMsgs[len(replayMsgs)-1].StreamId
+			if err := orderRedis.XGroupSetID(ctx, "ORDERS_"+marketId, "engine", lastReplayedId).Err(); err != nil {
+				slog.Error("Failed to advance consumer group after replay", "marketId", marketId, "err", err)
+			}
+		}
 	} else {
 	}
 	// --- end replay ---
+
+	// Restore wallet escrow for every order that survived replay so the
+	// in-memory wallet reflects locked quantities (guards against stale Redis).
+	for uid, userOrders := range OrderBook.UserOrderMap {
+		for _, o := range userOrders {
+			remaining := o.Quantity - o.Filled
+			if remaining <= 0 {
+				continue
+			}
+			if o.Side == orderbooks.BUY {
+				if err := userWallet.LockMoney(uid, remaining*o.Price); err != nil {
+					slog.Warn("replay: LockMoney failed", "orderId", o.Id, "err", err)
+				}
+			} else {
+				if err := userWallet.LockAsset(uid, marketId, remaining); err != nil {
+					slog.Warn("replay: LockAsset failed", "orderId", o.Id, "err", err)
+				}
+			}
+		}
+	}
 
 	baseInterval := 1 * time.Minute
 	timer := time.NewTimer(baseInterval + time.Duration(rand.Intn(10))*time.Second)
@@ -209,19 +239,22 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 			OrderBook.LastStreamId = order.StreamId
 
 			if order.OrderType == "CANCEL_ORDER" {
-				cancelledOrder, cancelled := OrderBook.CancelOrder(order.OrderId, order.UserId)
+				cancelledOrder, cancelled := OrderBook.CancelOrder(order.OrderId, order.UserId, 0)
 				if cancelled && cancelledOrder != nil {
 					remaining := cancelledOrder.Quantity - cancelledOrder.Filled
 					go func(o *orderbooks.Order, rem int) {
 						if o.Side == orderbooks.BUY {
 							if err := userWallet.UnlockMoney(o.UserId, rem*o.Price); err != nil {
 								slog.Error("UnlockMoney failed on cancel", "orderId", o.Id, "err", err)
+								return
 							}
 						} else {
 							if err := userWallet.UnlockAsset(o.UserId, marketId, rem); err != nil {
 								slog.Error("UnlockAsset failed on cancel", "orderId", o.Id, "err", err)
+								return
 							}
 						}
+						userWallet.FlushWalletToRedis(o.UserId)
 					}(cancelledOrder, remaining)
 				}
 
@@ -235,6 +268,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 					nil,
 					0,
 					0,
+					"", 0, "",
 					tradeRedis,
 				)
 				go pubsubSvc.Api().Publish(pubsub.PubSubOrderMessage{
@@ -255,6 +289,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 					})
 					continue
 				}
+				userWallet.FlushWalletToRedis(order.UserId)
 			} else {
 				if err := userWallet.LockAsset(order.UserId, order.MarketId, order.Quantity); err != nil {
 					slog.Warn("LockAsset failed, rejecting order", "orderId", order.OrderId, "err", err)
@@ -265,6 +300,7 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 					})
 					continue
 				}
+				userWallet.FlushWalletToRedis(order.UserId)
 			}
 
 			inputOrder := orderbooks.Order{
@@ -318,18 +354,29 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 				)
 			}()
 
-			go tradestream.TradeRedisStreamPublisher(
-				ctx,
-				tradestream.ORDER_UPDATED,
-				order.OrderId,
-				order.MarketId,
-				OrderBook.LastOrderId,
-				OrderBook.LastTradeId,
-				Fills,
-				executedQty,
-				order.Price,
-				tradeRedis,
-			)
+			go func(fills []orderbooks.Fills, userId string, side orderbooks.OrderSide,
+				oid string, exQty, qty, price int, lastOId, lastTId string) {
+				tradestream.TradeRedisStreamPublisher(
+					ctx, tradestream.ORDER_UPDATED, oid, marketId,
+					lastOId, lastTId, fills, exQty, price,
+					userId, qty, string(side),
+					tradeRedis,
+				)
+				for _, f := range fills {
+					var buyerId, sellerId string
+					if side == orderbooks.BUY {
+						buyerId, sellerId = userId, f.OtherUserId
+					} else {
+						buyerId, sellerId = f.OtherUserId, userId
+					}
+					if buyerId != usermap.AdminID {
+						userWallet.FlushWalletToRedis(buyerId)
+					}
+					if sellerId != usermap.AdminID {
+						userWallet.FlushWalletToRedis(sellerId)
+					}
+				}
+			}(Fills, order.UserId, orderbooks.OrderSide(order.OrderType), orderId, executedQty, order.Quantity, order.Price, OrderBook.LastOrderId, OrderBook.LastTradeId)
 			pushOrderbookUpdate(wsOutChannel, copyDepth(OrderBook.BidDepth), copyDepth(OrderBook.AskDepth), OrderBook.CurrentPrice, Fills)
 
 		case <-timer.C:
@@ -377,6 +424,53 @@ func StarMarketProcess(ctx context.Context, ch chan OrderMessages, tradeRedis *r
 						Payload: wsmessagestypes.DepthPayload{
 							BidDepth: bidDepth,
 							AskDepth: askDepth,
+						},
+						UserId:       userId,
+						ConnectionId: connId,
+					}
+				}()
+
+			case wsmessagestypes.CANCEL_ORDER_WS:
+				cancelledOrder, cancelled := OrderBook.CancelOrder(wsInMsg.OrderId, wsInMsg.UserId, wsInMsg.CancelQty)
+				cancelledQty := 0
+				if cancelled && cancelledOrder != nil {
+					cancelledQty = cancelledOrder.Quantity - cancelledOrder.Filled
+					go func(o *orderbooks.Order, rem int) {
+						if o.Side == orderbooks.BUY {
+							if err := userWallet.UnlockMoney(o.UserId, rem*o.Price); err != nil {
+								slog.Error("UnlockMoney failed on WS cancel", "orderId", o.Id, "err", err)
+							}
+						} else {
+							if err := userWallet.UnlockAsset(o.UserId, marketId, rem); err != nil {
+								slog.Error("UnlockAsset failed on WS cancel", "orderId", o.Id, "err", err)
+							}
+						}
+						userWallet.FlushWalletToRedis(o.UserId)
+					}(cancelledOrder, cancelledQty)
+					pushOrderbookUpdate(wsOutChannel, copyDepth(OrderBook.BidDepth), copyDepth(OrderBook.AskDepth), OrderBook.CurrentPrice, nil)
+					go tradestream.TradeRedisStreamPublisher(
+						ctx,
+						tradestream.CANCELLED_ORDER,
+						wsInMsg.OrderId,
+						marketId,
+						OrderBook.LastOrderId,
+						OrderBook.LastTradeId,
+						nil, 0, 0,
+						"", 0, "",
+						tradeRedis,
+					)
+				}
+				orderId := wsInMsg.OrderId
+				userId := wsInMsg.UserId
+				connId := wsInMsg.ConnectionId
+				cQty := cancelledQty
+				go func() {
+					wsOutChannel <- wsmessagestypes.WSOutMessageStruct{
+						MessageType: wsmessagestypes.ORDER_CANCELLED,
+						Payload: wsmessagestypes.OrderCancelledPayload{
+							OrderId:      orderId,
+							Success:      cancelled,
+							CancelledQty: cQty,
 						},
 						UserId:       userId,
 						ConnectionId: connId,

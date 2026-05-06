@@ -24,7 +24,7 @@ func main() {
 
 	auth.NewOAuth(cfg.Auth.GoAuthSecret, cfg.Server.CookieSecure, cfg.Auth.GoogleClientID, cfg.Auth.GoogleClientSecret, cfg.Auth.GithubClientID, cfg.Auth.GithubClientSecret, "http://"+cfg.Server.ApiServerAddr+"/api/rivon")
 
-	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL, cfg.Db.ApiEnginePubSubRedisURL)
+	Db, err := database.Init_DB(cfg.Db.PgURL, cfg.Db.OTPRedisURL, cfg.Db.OrderRedisURL, cfg.Db.ApiEnginePubSubRedisURL, cfg.Db.TradeRedisURL)
 	if err != nil {
 		panic("UNABLE TO CONNECT TO DB" + err.Error())
 	}
@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn, reg, Db.UserMapRedis)
+	router := routes.InitRouters(cfg, Db.PgDB, Db.OtpRedis, Db.OrderRedis, PubSubConn, reg, Db.UserMapRedis, Db.TradeRedis)
 
 	server := http.Server{
 		Addr:    cfg.Server.ApiServerAddr,

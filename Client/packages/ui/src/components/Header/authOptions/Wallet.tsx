@@ -14,19 +14,17 @@ function WalletIcon() {
     }
   }
   useEffect(() => {
-    const run = async () => {
-      await GetWalletStatus();
-    }
-    run();
+    GetWalletStatus();
+    const id = setInterval(GetWalletStatus, 30_000);
+    return () => clearInterval(id);
   }, []);
   return (
-    <div className="h-11/12 opacity-85 border  flex items-center space-x-1">
+    <a href="/wallet" className="h-11/12 opacity-85 border flex items-center space-x-1 hover:opacity-100 transition-opacity">
       <Wallet className="text-orange-500" />
       <span className="font-semibold">
         $ {(walletAmount / 100).toFixed(2)}
-
       </span>
-    </div>
+    </a>
   )
 }
 

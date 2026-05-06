@@ -13,9 +13,10 @@ type DataBase struct {
 	UserMapRedis          *redis.Client
 	OrderRedis            *redis.Client
 	ApiEnginerPubSubRedis *redis.Client
+	TradeRedis            *redis.Client
 }
 
-func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string, apiEnginePubSubRedisURL string) (*DataBase, error) {
+func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string, apiEnginePubSubRedisURL string, tradeRedisUrl string) (*DataBase, error) {
 	ctx := context.Background()
 	db, err := pgxpool.New(ctx, pgUrl)
 	if err != nil {
@@ -67,12 +68,23 @@ func Init_DB(pgUrl string, otpRedisUrl string, orderRedisUrl string, apiEnginePu
 		return nil, err
 	}
 
+	TradeRedis := redis.NewClient(&redis.Options{
+		Addr: tradeRedisUrl,
+	})
+	_, err = TradeRedis.Ping(ctx).Result()
+	if err != nil {
+		slog.Error("REDIS Ping failed for trade redis", slog.Any("ERROR :: ", err))
+		return nil, err
+	}
+	slog.Info("CONNECTED TO TRADE REDIS :: ")
+
 	return &DataBase{
 		PgDB:                  db,
 		OtpRedis:              OtpRedis,
 		OrderRedis:            OrderRedis,
 		ApiEnginerPubSubRedis: ApiEnginePubSubRedis,
 		UserMapRedis:          UserMapRedis,
+		TradeRedis:            TradeRedis,
 	}, nil
 
 }

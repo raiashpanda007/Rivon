@@ -407,7 +407,11 @@ func (r *OrderBook) GetOpenOrders(userId string) []*Order {
 	return result
 }
 
-func (r *OrderBook) CancelOrder(orderId string, userId string) (*Order, bool) {
+// CancelOrder removes or reduces an order. cancelQty == 0 means full cancel.
+// For partial cancel (0 < cancelQty < remaining unfilled), the order stays in the
+// book with reduced quantity and a synthetic order representing the cancelled portion
+// is returned so the caller can unlock the correct amount of funds/assets.
+func (r *OrderBook) CancelOrder(orderId string, userId string, cancelQty int) (*Order, bool) {
 	userOrders, ok := r.UserOrderMap[userId]
 	if !ok {
 		return nil, false
@@ -432,11 +436,28 @@ func (r *OrderBook) CancelOrder(orderId string, userId string) (*Order, bool) {
 		depthMap = r.AskDepth
 	}
 
+	remaining := order.Quantity - order.Filled
+
+	// Partial cancel: reduce quantity without removing the order.
+	if cancelQty > 0 && cancelQty < remaining {
+		depthMap[order.Price] -= cancelQty
+		order.Quantity -= cancelQty
+		return &Order{
+			Id:       order.Id,
+			UserId:   order.UserId,
+			Price:    order.Price,
+			Side:     order.Side,
+			Quantity: cancelQty,
+			Filled:   0,
+		}, true
+	}
+
+	// Full cancel.
 	orders := bucket[order.Price]
 	for i, o := range orders {
 		if o.Id == orderId {
 			bucket[order.Price] = append(orders[:i], orders[i+1:]...)
-			depthMap[order.Price] -= order.Quantity - order.Filled
+			depthMap[order.Price] -= remaining
 			if len(bucket[order.Price]) == 0 {
 				delete(bucket, order.Price)
 				delete(depthMap, order.Price)

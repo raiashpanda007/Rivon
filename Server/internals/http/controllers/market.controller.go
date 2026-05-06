@@ -21,6 +21,7 @@ import (
 type MarketController interface {
 	GetMarkets(res http.ResponseWriter, req *http.Request)
 	PlaceOrder(res http.ResponseWriter, req *http.Request)
+	GetUserOpenOrders(res http.ResponseWriter, req *http.Request)
 }
 
 type marketControllerUtils struct {
@@ -146,7 +147,6 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 		utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("Invalid order parameters")))
 		return
 	}
-
 	fill, err := r.svc.PlaceOrder(req.Context(), userCred.Id, order.MarketId, order.Price, order.Quantity, order.OrderType)
 
 	if err != nil {
@@ -162,15 +162,18 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 
 	var status, message string
 	switch {
-	case fill.ExecutedQuantity > 0:
-		status = "filled"
-		message = "Order filled successfully"
-	case fill.Fills != nil:
-		status = "queued"
-		message = "Order queued in the order book"
-	default:
+	case fill.Fills == nil:
 		status = "accepted"
 		message = "Order accepted but engine did not respond in time. Your order is queued and will be processed."
+	case int64(fill.ExecutedQuantity) >= order.Quantity:
+		status = "filled"
+		message = "Order filled successfully"
+	case fill.ExecutedQuantity > 0:
+		status = "partially_filled"
+		message = "Order partially filled; remaining quantity queued in the order book"
+	default:
+		status = "queued"
+		message = "Order queued in the order book"
 	}
 
 	utils.WriteJson(res, http.StatusOK, utils.Response[types.PlaceOrderResponse]{
@@ -184,5 +187,30 @@ func (r *marketControllerUtils) PlaceOrder(res http.ResponseWriter, req *http.Re
 			Status:           status,
 			Message:          message,
 		},
+	})
+}
+
+func (r *marketControllerUtils) GetUserOpenOrders(res http.ResponseWriter, req *http.Request) {
+	userCred, ok := req.Context().Value("USER").(*auth.User)
+	if !ok {
+		utils.WriteJson(res, http.StatusUnauthorized, utils.GenerateError(utils.ErrUnauthorized, errors.New("not authenticated")))
+		return
+	}
+	marketId := req.URL.Query().Get("marketId")
+	if marketId == "" {
+		utils.WriteJson(res, http.StatusBadRequest, utils.GenerateError(utils.ErrBadRequest, errors.New("marketId required")))
+		return
+	}
+	orders, errType, err := r.svc.GetUserOpenOrders(req.Context(), userCred.Id.String(), marketId)
+	if err != nil {
+		slog.Error("GetUserOpenOrders error", "error", err)
+		utils.WriteJson(res, utils.ErrorMap[errType].StatusCode, utils.GenerateError(errType, err))
+		return
+	}
+	utils.WriteJson(res, http.StatusOK, utils.Response[[]markets.UserOrder]{
+		Heading: "Status Ok",
+		Message: "Fetched your open orders",
+		Data:    orders,
+		Status:  http.StatusOK,
 	})
 }

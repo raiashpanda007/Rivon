@@ -113,7 +113,7 @@ func redisStreamBatchConsumer(ctx context.Context, redisClient *redis.Client, ma
 			Consumer: fmt.Sprintf("engine-%d", batchId),
 			Streams:  streams,
 			Count:    10,
-			Block:    5 * time.Second,
+			Block:    0,
 		}).Result()
 
 		if err != nil {

@@ -4,13 +4,14 @@ import { z as zod } from "zod";
 export const MessageType = zod.enum([
   "SUBSCRIBE_MARKET",
   "UNSUBSCRIBE_MARKET",
+  "CANCEL_ORDER",
 ]);
 
 const ClientMsgSchema = zod.discriminatedUnion("type", [
   zod.object({
     type: zod.literal("SUBSCRIBE_MARKET"),
     payload: zod.object({
-      marketID: zod.string().uuid(), // stricter validation
+      marketID: zod.string().uuid(),
       userID: zod.string().optional(),
     }),
   }),
@@ -19,6 +20,15 @@ const ClientMsgSchema = zod.discriminatedUnion("type", [
     type: zod.literal("UNSUBSCRIBE_MARKET"),
     payload: zod.object({
       marketID: zod.string().uuid(),
+    }),
+  }),
+
+  zod.object({
+    type: zod.literal("CANCEL_ORDER"),
+    payload: zod.object({
+      marketID: zod.string().uuid(),
+      orderId: zod.string().uuid(),
+      cancelQty: zod.number().int().nonnegative().optional(),
     }),
   }),
 ]);

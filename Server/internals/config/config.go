@@ -14,6 +14,7 @@ type DataBase struct {
 	OTPRedisURL             string
 	OrderRedisURL           string
 	ApiEnginePubSubRedisURL string
+	TradeRedisURL           string
 }
 
 type AuthConfig struct {
@@ -128,6 +129,7 @@ func MustLoad() *Config {
 		OTPRedisURL:             mustEnv("OTP_REDIS_URL"),
 		OrderRedisURL:           mustEnv("ORDER_REDIS_URL"),
 		ApiEnginePubSubRedisURL: mustEnv("API_ENGINE_PUB_SUB_REDIS_URL"),
+		TradeRedisURL:           mustEnv("TRADE_REDIS_URL"),
 	}
 
 	cfg.Auth = authCfg

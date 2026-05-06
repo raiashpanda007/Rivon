@@ -1,0 +1,13 @@
+{
+  "name": "rivon-market-seeder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "bun run src/seed.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "postgres": "^3.4.5"
+  }
+}

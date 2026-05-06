@@ -47,6 +47,12 @@ func InitApiPubSub(ctx context.Context, apiPubSubRedisClient *redis.Client) ApiP
 
 func (r *apiPubSubStruct) Publish(message PubSubOrderMessage) error {
 
+	// Normalize nil fills to an empty slice so consumers can distinguish
+	// "engine acknowledged, no fills" (`[]`) from "engine never responded" (`null`).
+	if message.Fills == nil {
+		message.Fills = []orderbooks.Fills{}
+	}
+
 	data, err := json.Marshal(message)
 	if err != nil {
 		return err
