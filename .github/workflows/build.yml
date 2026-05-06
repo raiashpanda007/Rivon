@@ -31,8 +31,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:latest
+      timescaledb:
+        image: timescale/timescaledb:latest-pg17
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: mypass
