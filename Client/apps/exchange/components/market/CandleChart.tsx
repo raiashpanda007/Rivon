@@ -81,7 +81,7 @@ export function CandleChart({ marketId }: Props) {
         horzLines: { color: "#1a1a1a" },
       },
       localization: {
-        timeFormatter: (timestamp) => {
+        timeFormatter: (timestamp: number) => {
           const d = new Date((timestamp as number) * 1000)
           return d.toLocaleString(undefined, {
             month: "short",
