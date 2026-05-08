@@ -1,8 +1,7 @@
 "use client"
 
-import { Button } from "@workspace/ui/components/button"
 import Link from "next/link"
-import { BarChart3, ShieldCheck, Zap, Bot, GraduationCap, Globe2, ArrowLeftRight, Coins, Activity } from "lucide-react"
+import { BarChart3, ShieldCheck, Zap, Bot, GraduationCap, Globe2, ArrowLeftRight, Activity } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import LandingPageRefRouting from "@/components/Landing/LandingCard"
@@ -35,10 +34,10 @@ const TICKER_DATA = [
 
 const ACTIVITY_ITEMS = [
   { type: "trade", side: "BUY", team: "RMFC", price: 4.23, qty: 50, time: "14:32:07" },
-  { type: "bet", team: "MCFC", market: "WIN", odds: "2.10", time: "14:32:04" },
+  { type: "trade", side: "SELL", team: "MCFC", price: 3.52, qty: 30, time: "14:32:04" },
   { type: "trade", side: "SELL", team: "BMFC", price: 1.87, qty: 100, time: "14:31:58" },
   { type: "trade", side: "BUY", team: "ARFC", price: 3.18, qty: 25, time: "14:31:51" },
-  { type: "bet", team: "RMFC", market: "DRAW", odds: "3.40", time: "14:31:44" },
+  { type: "trade", side: "BUY", team: "LCFC", price: 0.94, qty: 200, time: "14:31:44" },
   { type: "trade", side: "BUY", team: "MUFC", price: 2.71, qty: 75, time: "14:31:39" },
 ]
 
@@ -53,7 +52,7 @@ const LEAGUES = [
 
 const FEATURES = [
   { icon: <BarChart3 className="w-4 h-4" />, title: "Trade Teams Like Stocks", desc: "Buy low, sell high, or hold positions as matches evolve using virtual currency." },
-  { icon: <Zap className="w-4 h-4" />, title: "Model + Market Odds", desc: "Betting odds set by advanced algorithms, adjusted in real-time by volume." },
+  { icon: <Zap className="w-4 h-4" />, title: "Price Discovery", desc: "Price is set entirely by the order book. No house margin, no fixed odds — pure peer-to-peer mechanics." },
   { icon: <ArrowLeftRight className="w-4 h-4" />, title: "Real-Time Order Books", desc: "Each market runs on an independent high-performance matching engine." },
   { icon: <Bot className="w-4 h-4" />, title: "Automated Market Makers", desc: "Bots ensure liquidity while real users drive price discovery." },
   { icon: <GraduationCap className="w-4 h-4" />, title: "Learn Risk Management", desc: "Master trading psychology and timing in a zero-risk environment." },
@@ -122,18 +121,17 @@ export default function Page() {
                   animate={{ textShadow: ["0 0 0px #f97316", "0 0 20px #f97316", "0 0 0px #f97316"] }}
                   transition={{ duration: 4, repeat: Infinity }}
                 >
-                  Bet Smarter.
+                  Trade Smarter.
                 </motion.span>
                 <br className="hidden sm:inline" />
-                One Ecosystem.
+                Real Markets.
               </motion.h1>
 
               <motion.p variants={fadeInUp} className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
-                Rivon combines a <span className="text-foreground font-medium">virtual exchange</span> with{" "}
-                <span className="text-foreground font-medium">intelligent betting</span>. Trade teams like stocks,
-                then use your portfolio value to place bets driven by{" "}
-                <span className="text-orange-500">predictive models</span> and{" "}
-                <span className="text-orange-500">real-time market action</span>.
+                A <span className="text-foreground font-medium">virtual stock exchange</span> built on a real{" "}
+                <span className="text-foreground font-medium">continuous double auction</span>. Trade football teams like stocks —
+                prices move on <span className="text-orange-500">real demand</span>, powered by a{" "}
+                <span className="text-orange-500">high-performance matching engine</span>.
               </motion.p>
 
               <motion.div
@@ -149,7 +147,7 @@ export default function Page() {
           {/* ── Scrolling Ticker ──────────────────────────────────────────── */}
           <MarketTicker />
 
-          {/* ── Two Engines ──────────────────────────────────────────────── */}
+          {/* ── One Engine ───────────────────────────────────────────────── */}
           <section className="py-20 border-y border-border overflow-hidden">
             <div className="container px-4 mx-auto max-w-6xl">
               <div className="grid gap-10 lg:grid-cols-2 lg:gap-12 items-start">
@@ -163,7 +161,7 @@ export default function Page() {
                   <motion.div variants={fadeInUp}>
                     <span className="font-mono text-[10px] text-orange-400 tracking-widest">ARCHITECTURE</span>
                     <h2 className="text-2xl font-bold tracking-tight sm:text-3xl mt-1">
-                      Two Engines. <span className="text-orange-500">One Platform.</span>
+                      One Engine. <span className="text-orange-500">Real Markets.</span>
                     </h2>
                   </motion.div>
 
@@ -186,32 +184,11 @@ export default function Page() {
                     </div>
                   </motion.div>
 
-                  <motion.div variants={fadeInUp} className="terminal-panel">
-                    <div className="terminal-panel-header">
-                      <div className="w-2 h-2 rounded-full bg-orange-400" />
-                      <span className="font-mono text-[10px] text-muted-foreground">MODULE_02 · BETTING</span>
-                    </div>
-                    <div className="flex gap-3 px-3 py-3">
-                      <div className="mt-0.5 p-1.5 bg-orange-500/10 text-orange-500 rounded-sm shrink-0">
-                        <Coins className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold mb-1">Intelligent Betting Layer</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Use exchange portfolio value to place bets. Odds fuse{" "}
-                          <span className="text-foreground">proprietary predictive models</span> with{" "}
-                          <span className="text-foreground">live market sentiment</span> — the perfect
-                          balance of data accuracy and market liquidity.
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-
                   <motion.p
                     variants={fadeInUp}
                     className="text-xs italic border-l-2 border-orange-500 pl-3 py-1 text-muted-foreground"
                   >
-                    "A financial ecosystem where you trade, hedge, and bet using the same underlying markets."
+                    "A financial exchange where price is set by participants, not a house — deterministic matching, transparent pricing, no hidden margins."
                   </motion.p>
                 </motion.div>
 
@@ -310,7 +287,7 @@ export default function Page() {
                 className="terminal-panel"
               >
                 <div className="terminal-panel-header">
-                  <span className="font-mono text-[10px] text-muted-foreground">6 MODULES LOADED</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">5 MODULES LOADED</span>
                 </div>
                 {FEATURES.map((feature, i) => (
                   <motion.div
@@ -437,14 +414,14 @@ function IntroAnimation({ onComplete }: { onComplete: () => void }) {
         )}
         {step === 2 && (
           <motion.h1
-            key="bet"
+            key="price"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4, ease: "easeOut" as const }}
             className="text-3xl md:text-5xl font-bold tracking-tight text-center px-4"
           >
-            BET <span className="text-orange-500">ALL IN</span> <br /> YOUR FAV TEAM
+            PRICE SET <br /> <span className="text-orange-500">BY THE MARKET</span>
           </motion.h1>
         )}
         {step === 3 && (
@@ -597,24 +574,15 @@ function ActivityFeed() {
             className="flex items-center gap-2 px-3 py-2 hover:bg-muted/20 transition-colors"
           >
             <span className="text-[10px] text-muted-foreground/60 w-14 shrink-0">{item.time}</span>
-            {item.type === "trade" ? (
-              <>
-                <span className={`w-8 shrink-0 font-bold ${item.side === "BUY" ? "text-green-400" : "text-red-400"}`}>
-                  {item.side}
-                </span>
-                <span className="text-foreground font-bold">{item.team}</span>
-                <span className="text-muted-foreground ml-auto">
-                  ${item.price} × {item.qty}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="w-8 shrink-0 font-bold text-orange-400">BET</span>
-                <span className="text-foreground font-bold">{item.team}</span>
-                <span className="text-muted-foreground">{item.market}</span>
-                <span className="text-orange-400 ml-auto">@{item.odds}</span>
-              </>
-            )}
+            <>
+              <span className={`w-8 shrink-0 font-bold ${item.side === "BUY" ? "text-green-400" : "text-red-400"}`}>
+                {item.side}
+              </span>
+              <span className="text-foreground font-bold">{item.team}</span>
+              <span className="text-muted-foreground ml-auto">
+                ${item.price} × {item.qty}
+              </span>
+            </>
           </motion.div>
         ))}
       </div>

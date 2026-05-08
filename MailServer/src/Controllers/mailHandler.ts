@@ -62,7 +62,7 @@ const generateEmailTemplate = (content: string) => {
             </div>
             <div class="footer">
                 <p>&copy; ${new Date().getFullYear()} Rivon. All rights reserved.</p>
-                <p>Trade Teams. Bet Smarter.</p>
+                <p>Trade Teams. Trade Smarter.</p>
             </div>
         </div>
     </div>

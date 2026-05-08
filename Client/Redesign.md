@@ -1,4 +1,4 @@
-Redesign the entire client-side UI of my app (Rivon), a trading + betting exchange platform.
+Redesign the entire client-side UI of my app (Rivon), a trading exchange platform.
 
 Context:
 The app is already built using React, Tailwind, and Framer Motion. It currently feels like a generic SaaS UI with card-based layouts. I want to transform the ENTIRE app (not just the landing page) into a cohesive, product-level trading system UI.
@@ -24,7 +24,7 @@ Layout (Across All Pages):
 - Use structured, multi-panel layouts where relevant:
   - left navigation / markets
   - central main content (charts, data)
-  - right panels (activity, order book, bets)
+  - right panels (activity, order book)
 - Use asymmetry and dynamic layouts instead of static sections
 - Ensure layout consistency across pages
 
@@ -42,7 +42,6 @@ Core App Pages (Important):
 Apply the new design system consistently across:
 - Dashboard / Home
 - Market / Trading pages
-- Betting interface
 - Portfolio / holdings
 - Any existing pages
 
