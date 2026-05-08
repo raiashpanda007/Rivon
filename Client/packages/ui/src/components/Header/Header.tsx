@@ -11,7 +11,7 @@ import { ThemeToggle } from "@workspace/ui/components/ThemeToggle";
 interface HeaderProps {
   scrollDirection?: "up" | "down" | null;
   isScrolled?: boolean;
-  currentApp?: "trade" | "betting";
+  currentApp?: "trade";
 }
 
 function Header({ isScrolled: externalIsScrolled, currentApp }: HeaderProps) {

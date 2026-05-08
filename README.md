@@ -31,7 +31,7 @@
 
 ## What is Rivon?
 
-Traditional sports betting platforms fix odds at booking time and rely on a house margin to stay profitable. Rivon replaces that model with a **continuous double auction** — the same mechanism used by financial exchanges. Every price is determined solely by the order book.
+Rivon is a **continuous double auction** exchange for sports — the same mechanism used by financial exchanges. Every price is determined solely by the order book.
 
 When more users buy a team's position, the price rises. When confidence drops, it falls. No fixed odds. No bookmaker margin. Just a market.
 
@@ -66,9 +66,9 @@ Six independent services connected through Redis Streams and PubSub:
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                             Client  (Next.js 16)                           │
 │                                                                            │
-│        ┌──────────────┐   ┌─────────────────────┐   ┌──────────────────┐  │
-│        │   base app   │   │  exchange terminal  │   │  bet interface   │  │
-│        └──────────────┘   └─────────────────────┘   └──────────────────┘  │
+│              ┌──────────────┐             ┌─────────────────────┐          │
+│              │   base app   │             │  exchange terminal  │          │
+│              └──────────────┘             └─────────────────────┘          │
 └────────────────────────────────────┬───────────────────────────────────────┘
                                      │  REST API
 ┌────────────────────────────────────▼───────────────────────────────────────┐
@@ -265,7 +265,7 @@ Load tests were run with `bots/load-tester/` — a custom tool that uses [k6](ht
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Frontend | Next.js 16, Turborepo, Bun | Three apps in one monorepo |
+| Frontend | Next.js 16, Turborepo, Bun | Two apps in one monorepo |
 | State Management | Redux Toolkit | Shared `@workspace/store` package |
 | API Server | Go, Chi router | Layered: routes → controllers → services |
 | WebSocket Gateway | Bun, ws, Redis PubSub | Dedicated WS server for market streams |
@@ -303,7 +303,6 @@ Next.js 16 monorepo powered by Turborepo and Bun. Three independent apps share a
 |---|---|
 | `base` | Auth, user dashboard, portfolio overview, league browser |
 | `exchange` | Live trading terminal — orderbook depth, price chart, order entry; knockout bracket viewer in league dashboard |
-| `bet` | Match predictions, position management, settlement history |
 
 **Shared packages:**
 
@@ -450,14 +449,13 @@ go run main.go start dbwritter
 ```bash
 cd Client
 bun install
-bun dev      # Turborepo starts all three apps
+bun dev      # Turborepo starts all apps
 ```
 
 | App | URL |
 |---|---|
 | base | http://localhost:3000 |
 | exchange | http://localhost:3001 |
-| bet | http://localhost:3002 |
 
 ### CLI Reference
 
@@ -520,7 +518,7 @@ Pull requests are welcome. For significant changes, open an issue first to align
 
 ## Vision
 
-Prediction markets produce more accurate forecasts than fixed-odds bookmakers. A properly designed continuous double auction — one where price is set by participants, not a house — is a fundamentally better model for sports prediction.
+A properly designed continuous double auction — one where price is set by participants, not a house — is a fundamentally better model for sports trading. No bookmaker margin. No fixed odds. Just a market.
 
 Rivon is an attempt to build that. The domain is sports, but the engineering standards are the same ones you would hold a financial exchange to: deterministic matching, transparent pricing, no hidden margins, and latency low enough that trading feels real-time.
 

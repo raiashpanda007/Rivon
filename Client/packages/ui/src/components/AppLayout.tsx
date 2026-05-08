@@ -10,7 +10,7 @@ import ApiCaller, { RequestType } from "@workspace/api-caller";
 
 interface AppLayoutProps {
     children: React.ReactNode;
-    currentApp?: "trade" | "betting";
+    currentApp?: "trade";
 }
 
 export function AppLayout({ children, currentApp }: AppLayoutProps) {
